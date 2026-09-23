@@ -1,0 +1,856 @@
+openapi: 3.0.3
+info:
+  title: API Hệ thống Quản lý Đồ án và Đề tài Nghiên cứu
+  description: >
+  version: 1.0.0
+servers:
+  - url: https://htquanlydavadtnc.freepage.cc/api/v1
+    description: Môi trường trực tuyến (InfinityFree)
+  - url: http://localhost:8080/api/v1
+    description: Máy cục bộ (XAMPP)
+
+tags:
+  - name: Hệ thống
+  - name: Người dùng và xác thực
+  - name: Đề tài
+  - name: Nhóm sinh viên
+  - name: Mốc tiến độ
+  - name: Nghiệm thu
+  - name: Thống kê và nhật ký
+  - name: Thông báo
+  - name: Tác vụ nội bộ
+
+security:
+  - phienDangNhap: []
+
+paths:
+  /health:
+    get:
+      tags: [Hệ thống]
+      summary: Kiểm tra sức khỏe hệ thống
+      security: []
+      responses:
+        '200': { $ref: '#/components/responses/ThanhCong' }
+
+  /auth/dang-ky:
+    post:
+      tags: [Người dùng và xác thực]
+      summary: Đăng ký tài khoản (YCCN-01)
+      description: Chỉ tạo tài khoản vai trò SINH_VIEN; trường vai trò trong thân yêu cầu bị bỏ qua.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [ten_dang_nhap, mat_khau, ho_ten, email]
+              properties:
+                ten_dang_nhap: { type: string, maxLength: 50 }
+                mat_khau: { type: string, minLength: 8 }
+                ho_ten: { type: string, maxLength: 100 }
+                email: { type: string, format: email }
+                so_dien_thoai: { type: string, maxLength: 15 }
+      responses:
+        '201': { $ref: '#/components/responses/DaTao' }
+        '422': { $ref: '#/components/responses/SaiDuLieu' }
+
+  /auth/dang-nhap:
+    post:
+      tags: [Người dùng và xác thực]
+      summary: Đăng nhập (YCCN-02)
+      description: Sai quá 5 lần trong 15 phút thì trả 429 (rủi ro BM10).
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [ten_dang_nhap, mat_khau]
+              properties:
+                ten_dang_nhap: { type: string }
+                mat_khau: { type: string }
+      responses:
+        '200': { $ref: '#/components/responses/ThanhCong' }
+        '401': { $ref: '#/components/responses/ChuaXacThuc' }
+        '429': { $ref: '#/components/responses/VuotTanSuat' }
+
+  /auth/dang-xuat:
+    post:
+      tags: [Người dùng và xác thực]
+      summary: Đăng xuất (YCCN-02)
+      responses:
+        '204': { description: Đã hủy phiên }
+        '401': { $ref: '#/components/responses/ChuaXacThuc' }
+
+  /auth/quen-mat-khau:
+    post:
+      tags: [Người dùng và xác thực]
+      summary: Khôi phục mật khẩu – gửi yêu cầu (YCCN-04)
+      description: Phản hồi giống nhau dù email có tồn tại hay không (rủi ro BM10).
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email]
+              properties:
+                email: { type: string, format: email }
+      responses:
+        '200': { $ref: '#/components/responses/ThanhCong' }
+
+  /auth/dat-lai-mat-khau:
+    post:
+      tags: [Người dùng và xác thực]
+      summary: Khôi phục mật khẩu – đặt lại (YCCN-04)
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [token, mat_khau_moi]
+              properties:
+                token: { type: string, description: Token gửi qua email, hết hạn ngắn }
+                mat_khau_moi: { type: string, minLength: 8 }
+      responses:
+        '200': { $ref: '#/components/responses/ThanhCong' }
+        '422': { $ref: '#/components/responses/SaiDuLieu' }
+
+  /nguoi-dung/toi:
+    get:
+      tags: [Người dùng và xác thực]
+      summary: Xem hồ sơ cá nhân (YCCN-22)
+      responses:
+        '200':
+          description: Thành công
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/PhanHoi'
+                  - type: object
+                    properties:
+                      data: { $ref: '#/components/schemas/NguoiDung' }
+        '401': { $ref: '#/components/responses/ChuaXacThuc' }
+    patch:
+      tags: [Người dùng và xác thực]
+      summary: Cập nhật hồ sơ cá nhân (YCCN-22)
+      description: Chỉ sửa thông tin liên hệ, không đổi vai trò.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                ho_ten: { type: string, maxLength: 100 }
+                so_dien_thoai: { type: string, maxLength: 15 }
+      responses:
+        '200': { $ref: '#/components/responses/ThanhCong' }
+        '401': { $ref: '#/components/responses/ChuaXacThuc' }
+        '422': { $ref: '#/components/responses/SaiDuLieu' }
+
+  /nguoi-dung/toi/mat-khau:
+    patch:
+      tags: [Người dùng và xác thực]
+      summary: Đổi mật khẩu (YCCN-03)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [mat_khau_cu, mat_khau_moi]
+              properties:
+                mat_khau_cu: { type: string }
+                mat_khau_moi: { type: string, minLength: 8 }
+      responses:
+        '200': { $ref: '#/components/responses/ThanhCong' }
+        '401': { $ref: '#/components/responses/ChuaXacThuc' }
+        '422': { $ref: '#/components/responses/SaiDuLieu' }
+
+  /nguoi-dung:
+    get:
+      tags: [Người dùng và xác thực]
+      summary: Danh sách người dùng
+      description: Chỉ vai trò THU_KY_KHOA.
+      parameters:
+        - { name: vai_tro, in: query, schema: { $ref: '#/components/schemas/VaiTro' } }
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Size'
+      responses:
+        '200': { $ref: '#/components/responses/ThanhCong' }
+        '403': { $ref: '#/components/responses/KhongDuQuyen' }
+
+  /nguoi-dung/{id}/trang-thai:
+    patch:
+      tags: [Người dùng và xác thực]
+      summary: Khóa, mở tài khoản, đổi vai trò
+      description: Chỉ vai trò THU_KY_KHOA.
+      parameters: [ { $ref: '#/components/parameters/Id' } ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                khoa: { type: boolean }
+                vai_tro: { $ref: '#/components/schemas/VaiTro' }
+      responses:
+        '200': { $ref: '#/components/responses/ThanhCong' }
+        '403': { $ref: '#/components/responses/KhongDuQuyen' }
+
+  /public/de-tai:
+    get:
+      tags: [Đề tài]
+      summary: Trang danh sách đề tài công khai (YCCN-21)
+      description: Không yêu cầu xác thực, ẩn thông tin nội bộ.
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Size'
+      responses:
+        '200': { $ref: '#/components/responses/ThanhCong' }
+
+  /de-tai:
+    get:
+      tags: [Đề tài]
+      summary: Tìm kiếm, lọc, phân trang đề tài (YCCN-13, YCCN-14)
+      description: Kết quả giới hạn theo phạm vi quyền của người gọi.
+      parameters:
+        - { name: trang_thai, in: query, schema: { $ref: '#/components/schemas/TrangThaiDeTai' } }
+        - { name: gvhd_id, in: query, schema: { type: integer, format: int64 } }
+        - { name: moc_id, in: query, schema: { type: integer, format: int64 } }
+        - { name: q, in: query, schema: { type: string, maxLength: 100 } }
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Size'
+      responses:
+        '200': { $ref: '#/components/responses/ThanhCong' }
+        '401': { $ref: '#/components/responses/ChuaXacThuc' }
+    post:
+      tags: [Đề tài]
+      summary: Đề xuất đề tài mới (YCCN-05, UC01)
+      description: Chỉ nhóm trưởng. Trạng thái khởi tạo cho_duyet; trùng tên đề tài trong lớp trả 422.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [ten_de_tai, mo_ta_pham_vi]
+              properties:
+                ten_de_tai: { type: string, maxLength: 200 }
+                mo_ta_pham_vi: { type: string }
+      responses:
+        '201': { $ref: '#/components/responses/DaTao' }
+        '401': { $ref: '#/components/responses/ChuaXacThuc' }
+        '403': { $ref: '#/components/responses/KhongDuQuyen' }
+        '422': { $ref: '#/components/responses/SaiDuLieu' }
+
+  /de-tai/{id}:
+    parameters: [ { $ref: '#/components/parameters/Id' } ]
+    get:
+      tags: [Đề tài]
+      summary: Xem chi tiết đề tài
+      description: Kiểm tra quyền trên đối tượng ở tầng service, trả 403 hoặc 404 nếu không thuộc quyền (BM4).
+      responses:
+        '200':
+          description: Thành công
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/PhanHoi'
+                  - type: object
+                    properties:
+                      data: { $ref: '#/components/schemas/DeTai' }
+        '403': { $ref: '#/components/responses/KhongDuQuyen' }
+        '404': { $ref: '#/components/responses/KhongTimThay' }
+    patch:
+      tags: [Đề tài]
+      summary: Cập nhật đề tài khi còn ở trạng thái đề xuất
+      description: Chỉ sinh viên chủ đề tài, chỉ khi trạng thái là de_xuat hoặc cho_duyet.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                ten_de_tai: { type: string, maxLength: 200 }
+                mo_ta_pham_vi: { type: string }
+      responses:
+        '200': { $ref: '#/components/responses/ThanhCong' }
+        '403': { $ref: '#/components/responses/KhongDuQuyen' }
+        '422': { $ref: '#/components/responses/SaiTrangThai' }
+    delete:
+      tags: [Đề tài]
+      summary: Xóa đề xuất chưa duyệt
+      responses:
+        '204': { description: Đã xóa }
+        '403': { $ref: '#/components/responses/KhongDuQuyen' }
+        '422': { $ref: '#/components/responses/SaiTrangThai' }
+
+  /de-tai/{id}/duyet:
+    parameters: [ { $ref: '#/components/parameters/Id' } ]
+    post:
+      tags: [Đề tài]
+      summary: Duyệt đề tài (YCCN-06, UC02)
+      description: Chỉ GVHD phụ trách. Chuyển trạng thái sang da_duyet_dang_thuc_hien và ghi lịch sử.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                nhan_xet: { type: string }
+      responses:
+        '200': { $ref: '#/components/responses/ThanhCong' }
+        '403': { $ref: '#/components/responses/KhongDuQuyen' }
+        '422': { $ref: '#/components/responses/SaiTrangThai' }
+
+  /de-tai/{id}/tu-choi:
+    parameters: [ { $ref: '#/components/parameters/Id' } ]
+    post:
+      tags: [Đề tài]
+      summary: Từ chối, yêu cầu chỉnh sửa đề tài (YCCN-06, UC02)
+      description: Bắt buộc kèm lý do; đề tài quay về trạng thái de_xuat.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [ly_do]
+              properties:
+                ly_do: { type: string }
+      responses:
+        '200': { $ref: '#/components/responses/ThanhCong' }
+        '403': { $ref: '#/components/responses/KhongDuQuyen' }
+        '422': { $ref: '#/components/responses/SaiTrangThai' }
+
+  /de-tai/{id}/lich-su:
+    parameters: [ { $ref: '#/components/parameters/Id' } ]
+    get:
+      tags: [Đề tài]
+      summary: Xem lịch sử trạng thái đề tài (YCCN-12)
+      responses:
+        '200': { $ref: '#/components/responses/ThanhCong' }
+        '403': { $ref: '#/components/responses/KhongDuQuyen' }
+
+  /nhom-sinh-vien:
+    post:
+      tags: [Nhóm sinh viên]
+      summary: Tạo nhóm sinh viên
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [ten_nhom, lop_hoc_phan_id]
+              properties:
+                ten_nhom: { type: string, maxLength: 100 }
+                lop_hoc_phan_id: { type: integer, format: int64 }
+      responses:
+        '201': { $ref: '#/components/responses/DaTao' }
+        '403': { $ref: '#/components/responses/KhongDuQuyen' }
+
+  /nhom-sinh-vien/{id}:
+    parameters: [ { $ref: '#/components/parameters/Id' } ]
+    get:
+      tags: [Nhóm sinh viên]
+      summary: Xem chi tiết nhóm sinh viên
+      responses:
+        '200': { $ref: '#/components/responses/ThanhCong' }
+        '403': { $ref: '#/components/responses/KhongDuQuyen' }
+
+  /nhom-sinh-vien/{id}/gvhd:
+    parameters: [ { $ref: '#/components/parameters/Id' } ]
+    patch:
+      tags: [Nhóm sinh viên]
+      summary: Phân công GVHD cho nhóm (YCCN-07)
+      description: Chỉ vai trò THU_KY_KHOA.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [gvhd_id]
+              properties:
+                gvhd_id: { type: integer, format: int64 }
+      responses:
+        '200': { $ref: '#/components/responses/ThanhCong' }
+        '403': { $ref: '#/components/responses/KhongDuQuyen' }
+        '422': { $ref: '#/components/responses/SaiDuLieu' }
+
+  /nhom-sinh-vien/{id}/thanh-vien:
+    parameters: [ { $ref: '#/components/parameters/Id' } ]
+    post:
+      tags: [Nhóm sinh viên]
+      summary: Thêm thành viên nhóm
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [sinh_vien_id]
+              properties:
+                sinh_vien_id: { type: integer, format: int64 }
+                vai_tro_nhom: { type: string, enum: [leader, member], default: member }
+      responses:
+        '201': { $ref: '#/components/responses/DaTao' }
+        '403': { $ref: '#/components/responses/KhongDuQuyen' }
+
+  /nhom-sinh-vien/{id}/thanh-vien/{svId}:
+    parameters:
+      - $ref: '#/components/parameters/Id'
+      - { name: svId, in: path, required: true, schema: { type: integer, format: int64 } }
+    delete:
+      tags: [Nhóm sinh viên]
+      summary: Xóa thành viên khỏi nhóm
+      responses:
+        '204': { description: Đã xóa }
+        '403': { $ref: '#/components/responses/KhongDuQuyen' }
+
+  /moc-thoi-gian:
+    get:
+      tags: [Mốc tiến độ]
+      summary: Danh sách mốc của lớp học phần (YCCN-08)
+      responses:
+        '200': { $ref: '#/components/responses/ThanhCong' }
+        '401': { $ref: '#/components/responses/ChuaXacThuc' }
+    post:
+      tags: [Mốc tiến độ]
+      summary: Cấu hình mốc thời gian chung (YCCN-08)
+      description: Chỉ vai trò THU_KY_KHOA, áp dụng cho cả lớp học phần.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [lop_hoc_phan_id, ten_moc, han_nop]
+              properties:
+                lop_hoc_phan_id: { type: integer, format: int64 }
+                ten_moc: { type: string, maxLength: 100 }
+                mo_ta: { type: string }
+                han_nop: { type: string, format: date-time }
+                bat_buoc: { type: boolean, default: true }
+      responses:
+        '201': { $ref: '#/components/responses/DaTao' }
+        '403': { $ref: '#/components/responses/KhongDuQuyen' }
+        '422': { $ref: '#/components/responses/SaiDuLieu' }
+
+  /moc-thoi-gian/{id}:
+    parameters: [ { $ref: '#/components/parameters/Id' } ]
+    patch:
+      tags: [Mốc tiến độ]
+      summary: Cập nhật mốc (YCCN-08)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                ten_moc: { type: string, maxLength: 100 }
+                mo_ta: { type: string }
+                han_nop: { type: string, format: date-time }
+      responses:
+        '200': { $ref: '#/components/responses/ThanhCong' }
+        '403': { $ref: '#/components/responses/KhongDuQuyen' }
+
+  /de-tai/{deTaiId}/bao-cao-moc:
+    parameters:
+      - { name: deTaiId, in: path, required: true, schema: { type: integer, format: int64 } }
+    post:
+      tags: [Mốc tiến độ]
+      summary: Nộp báo cáo tiến độ theo mốc (YCCN-09, UC03)
+      description: >
+        Chỉ sinh viên chủ đề tài. Chỉ nhận .pdf và .docx, kiểm tra chữ ký tệp thực,
+        dung lượng tối đa 5 MB, tên tệp lưu là chuỗi ngẫu nhiên, lưu ngoài thư mục web (BM8).
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [moc_thoi_gian_id, tep]
+              properties:
+                moc_thoi_gian_id: { type: integer, format: int64 }
+                tep: { type: string, format: binary }
+                ghi_chu: { type: string }
+      responses:
+        '201': { $ref: '#/components/responses/DaTao' }
+        '403': { $ref: '#/components/responses/KhongDuQuyen' }
+        '422': { $ref: '#/components/responses/SaiDuLieu' }
+
+  /bao-cao-moc/{id}:
+    parameters: [ { $ref: '#/components/parameters/Id' } ]
+    get:
+      tags: [Mốc tiến độ]
+      summary: Xem chi tiết báo cáo mốc
+      description: Kiểm tra quyền trên đối tượng, chống IDOR.
+      responses:
+        '200':
+          description: Thành công
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/PhanHoi'
+                  - type: object
+                    properties:
+                      data: { $ref: '#/components/schemas/BaoCaoMoc' }
+        '403': { $ref: '#/components/responses/KhongDuQuyen' }
+        '404': { $ref: '#/components/responses/KhongTimThay' }
+    put:
+      tags: [Mốc tiến độ]
+      summary: Nộp lại, ghi đè khi mốc còn mở (YCCN-09)
+      description: Chỉ khi mốc đang ở trạng thái dang_mo_nop.
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [tep]
+              properties:
+                tep: { type: string, format: binary }
+                ghi_chu: { type: string }
+      responses:
+        '200': { $ref: '#/components/responses/ThanhCong' }
+        '403': { $ref: '#/components/responses/KhongDuQuyen' }
+        '422': { $ref: '#/components/responses/SaiTrangThai' }
+
+  /bao-cao-moc/{id}/duyet:
+    parameters: [ { $ref: '#/components/parameters/Id' } ]
+    post:
+      tags: [Mốc tiến độ]
+      summary: Duyệt báo cáo mốc – Đạt (YCCN-10, UC04)
+      description: Chỉ GVHD phụ trách nhóm.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                nhan_xet_gv: { type: string }
+      responses:
+        '200': { $ref: '#/components/responses/ThanhCong' }
+        '403': { $ref: '#/components/responses/KhongDuQuyen' }
+        '422': { $ref: '#/components/responses/SaiTrangThai' }
+
+  /bao-cao-moc/{id}/yeu-cau-bo-sung:
+    parameters: [ { $ref: '#/components/parameters/Id' } ]
+    post:
+      tags: [Mốc tiến độ]
+      summary: Yêu cầu bổ sung báo cáo mốc (YCCN-10, UC04)
+      description: Bắt buộc kèm nhận xét; mốc quay về dang_mo_nop.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [nhan_xet_gv]
+              properties:
+                nhan_xet_gv: { type: string }
+                han_gia_han: { type: string, format: date-time }
+      responses:
+        '200': { $ref: '#/components/responses/ThanhCong' }
+        '403': { $ref: '#/components/responses/KhongDuQuyen' }
+        '422': { $ref: '#/components/responses/SaiTrangThai' }
+
+  /bao-cao-moc/{id}/lich-su:
+    parameters: [ { $ref: '#/components/parameters/Id' } ]
+    get:
+      tags: [Mốc tiến độ]
+      summary: Xem lịch sử trạng thái mốc (YCCN-12)
+      responses:
+        '200': { $ref: '#/components/responses/ThanhCong' }
+        '403': { $ref: '#/components/responses/KhongDuQuyen' }
+
+  /nghiem-thu/ho-so:
+    get:
+      tags: [Nghiệm thu]
+      summary: Danh sách hồ sơ đủ điều kiện nghiệm thu (YCCN-19)
+      description: Chỉ vai trò HOI_DONG; chỉ trả đề tài đã hoàn thành các mốc bắt buộc.
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Size'
+      responses:
+        '200': { $ref: '#/components/responses/ThanhCong' }
+        '403': { $ref: '#/components/responses/KhongDuQuyen' }
+
+  /de-tai/{id}/ho-so-nghiem-thu:
+    parameters: [ { $ref: '#/components/parameters/Id' } ]
+    get:
+      tags: [Nghiệm thu]
+      summary: Xem chi tiết hồ sơ đề tài để nghiệm thu (YCCN-19)
+      responses:
+        '200': { $ref: '#/components/responses/ThanhCong' }
+        '403': { $ref: '#/components/responses/KhongDuQuyen' }
+
+  /de-tai/{id}/diem-nghiem-thu:
+    parameters: [ { $ref: '#/components/parameters/Id' } ]
+    get:
+      tags: [Nghiệm thu]
+      summary: Xem điểm nghiệm thu đã chấm
+      description: Trả điểm trung bình nếu nhiều thành viên hội đồng cùng chấm.
+      responses:
+        '200': { $ref: '#/components/responses/ThanhCong' }
+        '403': { $ref: '#/components/responses/KhongDuQuyen' }
+    post:
+      tags: [Nghiệm thu]
+      summary: Chấm điểm nghiệm thu (YCCN-19, UC06)
+      description: Chỉ vai trò HOI_DONG, đề tài phải đủ điều kiện. Điểm ngoài 0–10 trả 422.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [diem]
+              properties:
+                diem: { type: number, format: float, minimum: 0, maximum: 10 }
+                nhan_xet: { type: string }
+      responses:
+        '201': { $ref: '#/components/responses/DaTao' }
+        '403': { $ref: '#/components/responses/KhongDuQuyen' }
+        '422': { $ref: '#/components/responses/SaiDuLieu' }
+
+  /thong-ke/tien-do:
+    get:
+      tags: [Thống kê và nhật ký]
+      summary: Thống kê tiến độ toàn khoa (YCCN-17, UC05)
+      description: Thư ký khoa xem toàn khoa, GVHD chỉ xem trong phạm vi phụ trách.
+      parameters:
+        - { name: lop, in: query, schema: { type: string } }
+        - { name: gvhd_id, in: query, schema: { type: integer, format: int64 } }
+        - { name: tu_ngay, in: query, schema: { type: string, format: date } }
+        - { name: den_ngay, in: query, schema: { type: string, format: date } }
+      responses:
+        '200': { $ref: '#/components/responses/ThanhCong' }
+        '403': { $ref: '#/components/responses/KhongDuQuyen' }
+
+  /thong-ke/tien-do/xuat:
+    get:
+      tags: [Thống kê và nhật ký]
+      summary: Xuất báo cáo thống kê CSV hoặc Excel (YCCN-18)
+      parameters:
+        - { name: dinh_dang, in: query, schema: { type: string, enum: [csv, xlsx], default: csv } }
+      responses:
+        '200':
+          description: Tệp kết xuất
+          content:
+            text/csv:
+              schema: { type: string, format: binary }
+        '403': { $ref: '#/components/responses/KhongDuQuyen' }
+
+  /nhat-ky-he-thong:
+    get:
+      tags: [Thống kê và nhật ký]
+      summary: Tra cứu nhật ký hệ thống (YCCN-20)
+      description: Chỉ vai trò THU_KY_KHOA. Nhật ký chỉ đọc, không có điểm cuối sửa hoặc xóa.
+      parameters:
+        - { name: nguoi_dung_id, in: query, schema: { type: integer, format: int64 } }
+        - { name: hanh_dong, in: query, schema: { type: string } }
+        - { name: tu_ngay, in: query, schema: { type: string, format: date } }
+        - { name: den_ngay, in: query, schema: { type: string, format: date } }
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Size'
+      responses:
+        '200': { $ref: '#/components/responses/ThanhCong' }
+        '403': { $ref: '#/components/responses/KhongDuQuyen' }
+
+  /thong-bao:
+    get:
+      tags: [Thông báo]
+      summary: Danh sách thông báo của tôi (YCCN-15, YCCN-16)
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Size'
+      responses:
+        '200': { $ref: '#/components/responses/ThanhCong' }
+        '401': { $ref: '#/components/responses/ChuaXacThuc' }
+
+  /thong-bao/{id}/da-doc:
+    parameters: [ { $ref: '#/components/parameters/Id' } ]
+    patch:
+      tags: [Thông báo]
+      summary: Đánh dấu thông báo đã đọc (YCCN-15)
+      description: Chỉ chủ thông báo.
+      responses:
+        '200': { $ref: '#/components/responses/ThanhCong' }
+        '403': { $ref: '#/components/responses/KhongDuQuyen' }
+
+  /internal/moc-thoi-gian/quet-qua-han:
+    post:
+      tags: [Tác vụ nội bộ]
+      summary: Quét và đánh dấu mốc quá hạn (YCCN-11)
+      description: >
+        Điểm cuối nội bộ, không gọi từ giao diện người dùng. Mọi vai trò người dùng đều bị từ chối.
+        InfinityFree không có tác vụ định kỳ nên áp dụng phương án dự phòng tại Mục 6.2 của
+        Tài liệu hướng dẫn kỹ thuật: so hạn nộp với thời điểm hiện tại khi có truy cập.
+      responses:
+        '200': { $ref: '#/components/responses/ThanhCong' }
+        '403': { $ref: '#/components/responses/KhongDuQuyen' }
+
+  /internal/thong-bao/nhac-han:
+    post:
+      tags: [Tác vụ nội bộ]
+      summary: Sinh thông báo nhắc hạn (YCCN-15)
+      description: Điểm cuối nội bộ, không gọi từ giao diện người dùng.
+      responses:
+        '200': { $ref: '#/components/responses/ThanhCong' }
+        '403': { $ref: '#/components/responses/KhongDuQuyen' }
+
+components:
+  securitySchemes:
+    phienDangNhap:
+      type: apiKey
+      in: cookie
+      name: laravel_session
+      description: Cookie phiên có HttpOnly, Secure, SameSite=Lax (rủi ro BM7)
+
+  parameters:
+    Id:
+      name: id
+      in: path
+      required: true
+      schema: { type: integer, format: int64 }
+    Page:
+      name: page
+      in: query
+      schema: { type: integer, default: 1, minimum: 1 }
+    Size:
+      name: size
+      in: query
+      schema: { type: integer, default: 20, maximum: 100 }
+      description: Máy chủ giới hạn tối đa 100 bản ghi mỗi trang
+
+  schemas:
+    VaiTro:
+      type: string
+      enum: [SINH_VIEN, GVHD, THU_KY_KHOA, HOI_DONG]
+    TrangThaiDeTai:
+      type: string
+      enum: [de_xuat, cho_duyet, da_duyet_dang_thuc_hien, tu_choi, da_nghiem_thu]
+    TrangThaiMoc:
+      type: string
+      enum: [chua_den_han, dang_mo_nop, cho_duyet, yeu_cau_bo_sung, hoan_thanh, qua_han]
+    PhanHoi:
+      type: object
+      properties:
+        status: { type: string, example: success }
+        data: { type: object }
+        message: { type: string, example: Thao tác thành công }
+    Loi:
+      type: object
+      properties:
+        status: { type: string, example: error }
+        code: { type: integer, example: 422 }
+        message: { type: string, example: Dữ liệu không hợp lệ }
+        errors:
+          type: object
+          additionalProperties:
+            type: array
+            items: { type: string }
+      description: >
+        Cấu trúc lỗi thống nhất theo Quy ước mã nguồn – Nhóm 03. Không chứa câu lệnh SQL,
+        đường dẫn tệp hay vết gọi hàm (rủi ro BM9).
+    NguoiDung:
+      type: object
+      properties:
+        id: { type: integer, format: int64 }
+        ten_dang_nhap: { type: string }
+        ho_ten: { type: string }
+        email: { type: string, format: email }
+        so_dien_thoai: { type: string }
+        vai_tro:
+          type: array
+          items: { $ref: '#/components/schemas/VaiTro' }
+      description: Không bao giờ trả về cột mat_khau_hash (rủi ro BM6).
+    DeTai:
+      type: object
+      properties:
+        id: { type: integer, format: int64 }
+        ten_de_tai: { type: string, maxLength: 200 }
+        mo_ta_pham_vi: { type: string }
+        trang_thai: { $ref: '#/components/schemas/TrangThaiDeTai' }
+        sinh_vien_de_xuat_id: { type: integer, format: int64 }
+        gvhd_id: { type: integer, format: int64, nullable: true }
+        lop_hoc_phan_id: { type: integer, format: int64 }
+        created_at: { type: string, format: date-time }
+    MocThoiGian:
+      type: object
+      properties:
+        id: { type: integer, format: int64 }
+        lop_hoc_phan_id: { type: integer, format: int64 }
+        ten_moc: { type: string, maxLength: 100 }
+        mo_ta: { type: string }
+        han_nop: { type: string, format: date-time }
+        bat_buoc: { type: boolean }
+    BaoCaoMoc:
+      type: object
+      properties:
+        id: { type: integer, format: int64 }
+        de_tai_id: { type: integer, format: int64 }
+        moc_thoi_gian_id: { type: integer, format: int64 }
+        ten_tep_goc: { type: string }
+        trang_thai: { $ref: '#/components/schemas/TrangThaiMoc' }
+        nhan_xet_gv: { type: string }
+        created_at: { type: string, format: date-time }
+      description: Không trả duong_dan_tep ra ngoài; tải tệp qua điểm cuối có kiểm quyền (BM8).
+
+  responses:
+    ThanhCong:
+      description: Thành công
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/PhanHoi' }
+    DaTao:
+      description: Tạo mới thành công
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/PhanHoi' }
+    ChuaXacThuc:
+      description: Chưa xác thực (401)
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Loi' }
+    KhongDuQuyen:
+      description: Đã xác thực nhưng không đủ quyền (403)
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Loi' }
+    KhongTimThay:
+      description: Không tìm thấy (404)
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Loi' }
+    SaiDuLieu:
+      description: Dữ liệu vào không hợp lệ (422)
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Loi' }
+    SaiTrangThai:
+      description: Vi phạm quy tắc chuyển trạng thái (422)
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Loi' }
+    VuotTanSuat:
+      description: Vượt giới hạn tần suất (429)
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Loi' }
