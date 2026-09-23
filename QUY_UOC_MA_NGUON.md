@@ -25,7 +25,7 @@ Tài liệu này áp dụng cho toàn bộ mã nguồn của dự án (Nhánh A 
 
 ## 2. Quy ước đặt tên cơ sở dữ liệu
 
-- **Tên bảng**: số ít, không dấu, snake_case — ví dụ `de_tai`, `sinh_vien`, `bao_cao_moc`.
+- **Tên bảng**: số nhiều... *(chỉnh sửa: dùng số ít, không dấu, snake_case)* — ví dụ `de_tai`, `sinh_vien`, `bao_cao_moc`.
 - **Khóa chính**: luôn đặt tên cột là `id` (kiểu `BIGINT UNSIGNED AUTO_INCREMENT`).
 - **Khóa ngoại**: đặt tên dạng `<ten_bang>_id`, ví dụ `de_tai_id`, `nguoi_dung_id`.
 - **Cột thời gian**: dùng thống nhất `created_at`, `updated_at` (và `deleted_at` nếu dùng soft-delete).
@@ -49,31 +49,61 @@ Tài liệu này áp dụng cho toàn bộ mã nguồn của dự án (Nhánh A 
 
 ---
 
-## 4. Cấu trúc phản hồi API thống nhất
+## 4. Cấu trúc phản hồi API thống nhất (theo Tài liệu hướng dẫn kỹ thuật chi tiết)
 
-**Thành công:**
+### 4.1. Quy ước đường dẫn (route)
+
+- Dùng danh từ số nhiều, chữ thường, gạch nối (kebab-case): `/api/v1/de-tai`, `/api/v1/bao-cao-moc`.
+- **Không** đặt động từ trong đường dẫn cho các thao tác CRUD (sai: `/api/getDeTai`, `/api/xoaDeTai`).
+- Không đặt số phiên bản ở nơi khác ngoài tiền tố `/api/v1`.
+- Với hành động nghiệp vụ không phải CRUD thuần túy (duyệt, từ chối, nộp lại...), dùng `POST` kèm động từ ở cuối đường dẫn: `POST /api/v1/de-tai/{id}/approve`, `POST /api/v1/bao-cao-moc/{id}/reject`.
+
+### 4.2. Bảng quy ước theo từng nghiệp vụ
+
+| Nghiệp vụ | Phương thức và đường dẫn | Mã thành công | Ghi chú |
+|---|---|---|---|
+| Danh sách có phân trang | `GET /api/v1/de-tai?page=1&size=20&status=pending` | 200 | Trả kèm tổng số bản ghi và tổng số trang |
+| Chi tiết một bản ghi | `GET /api/v1/de-tai/{id}` | 200 | 404 nếu không tồn tại, 403 nếu không thuộc quyền |
+| Tạo mới | `POST /api/v1/de-tai` | 201 | Trả kèm header `Location` trỏ tới bản ghi vừa tạo |
+| Cập nhật toàn phần | `PUT /api/v1/de-tai/{id}` | 200 | Gửi đủ các trường |
+| Cập nhật một phần | `PATCH /api/v1/de-tai/{id}` | 200 | Chỉ gửi trường thay đổi |
+| Xóa | `DELETE /api/v1/de-tai/{id}` | 204 | Không có thân phản hồi |
+| Hành động nghiệp vụ | `POST /api/v1/de-tai/{id}/approve` | 200 | Dùng động từ cho hành động không phải CRUD |
+| Kiểm tra sức khỏe | `GET /api/v1/health` | 200 | Không yêu cầu xác thực, dùng cho giám sát |
+
+### 4.3. Cấu trúc lỗi thống nhất
+
+Mọi phản hồi lỗi dùng chung một cấu trúc:
+
 ```json
 {
-  "status": "success",
-  "data": { },
-  "message": "Thao tác thành công"
-}
-```
-
-**Lỗi:**
-```json
-{
-  "status": "error",
-  "code": 422,
-  "message": "Dữ liệu không hợp lệ",
-  "errors": {
-    "ten_de_tai": ["Không được để trống"]
+  "error": {
+    "code": "VALIDATION_FAILED",
+    "message": "Du lieu dau vao khong hop le",
+    "details": [
+      { "field": "ten_de_tai", "issue": "Khong duoc de trong" },
+      { "field": "han_nop", "issue": "Phai la thoi diem trong tuong lai" }
+    ],
+    "requestId": "a7f3c1e2-..."
   }
 }
 ```
 
-- Dùng đúng mã trạng thái HTTP theo ngữ nghĩa: `200` (thành công), `201` (tạo mới), `400`/`422` (dữ liệu sai), `401` (chưa xác thực), `403` (không đủ quyền), `404` (không tìm thấy), `500` (lỗi máy chủ).
-- Không bao giờ để lộ thông báo lỗi chi tiết của hệ thống (stack trace) ra ngoài môi trường trực tuyến.
+**Bảng mã trạng thái (status code):**
+
+| Mã | Ý nghĩa |
+|---|---|
+| 400 | Dữ liệu vào sai định dạng |
+| 401 | Chưa xác thực |
+| 403 | Đã xác thực nhưng không đủ quyền |
+| 404 | Không tìm thấy |
+| 409 | Xung đột trạng thái (ví dụ: mốc đã bị giữ/khóa) |
+| 410 | Tài nguyên đã hết hiệu lực |
+| 422 | Dữ liệu đúng định dạng nhưng vi phạm quy tắc nghiệp vụ |
+| 429 | Vượt giới hạn tần suất |
+| 500 | Lỗi ngoài dự kiến |
+
+**Nguyên tắc bắt buộc (bảo mật):** Thông báo lỗi trả về cho người dùng **không được chứa** câu lệnh SQL, đường dẫn tệp trên máy chủ, vết gọi hàm (stack trace) hay tên phiên bản thư viện. Toàn bộ chi tiết đó chỉ ghi vào nhật ký phía máy chủ (`nhat_ky_he_thong`), kèm `requestId` để đối chiếu khi cần tra cứu.
 
 ---
 
