@@ -31,8 +31,7 @@ class DeTaiController extends BaseController
             $repo    = new DeTaiRepository(Database::connect());
             $service = new DeTaiService($repo);
 
-            // TODO (viec cua V4): thay bang nguoi dung that lay tu session/JWT sau khi co xac thuc
-            $currentUser = ['id' => 1, 'vai_tro' => 'sinh_vien'];
+            $currentUser = $this->nguoiDungHienTai();
 
             $deTai = $service->getForUser($id, $currentUser);
 
@@ -56,7 +55,7 @@ class DeTaiController extends BaseController
 
             $repo    = new DeTaiRepository(Database::connect());
             $service = new DeTaiService($repo);
-            $currentUser = ['id' => 1, 'vai_tro' => 'sinh_vien'];
+            $currentUser = $this->nguoiDungHienTai();
 
             $ketQua = $service->listForUser($page, $size, $trangThai, $currentUser);
 
