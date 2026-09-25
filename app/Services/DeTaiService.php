@@ -32,13 +32,29 @@ class DeTaiService
             throw new NotFoundException('Khong tim thay de tai');
         }
 
-        $isOwner = (int) $deTai['nguoi_tao_id'] === (int) $currentUser['id'];
-        $isGvhdPhuTrach = $currentUser['vai_tro'] === 'gvhd' && (int) $deTai['gvhd_id'] === (int) $currentUser['id'];
-        $isThuKy = $currentUser['vai_tro'] === 'thu_ky_khoa';
-        $isHoiDong = $currentUser['vai_tro'] === 'hoi_dong';
+        $userId = (int) ($currentUser['id'] ?? 0);
+        $vaiTro = strtoupper(trim($currentUser['vai_tro'] ?? ''));
 
-        // Muc 2 - quyen tren doi tuong: chi 4 truong hop tren moi duoc xem
-        if (!$isOwner && !$isGvhdPhuTrach && !$isThuKy && !$isHoiDong) {
+        // Sinh vien: chi duoc xem de tai do chinh minh de xuat
+        $isChuDeTai = $vaiTro === 'SINH_VIEN'
+            && (int) $deTai['sinh_vien_de_xuat_id'] === $userId;
+
+        // GVHD: chi duoc xem de tai do minh phu trach
+        $isGvhdPhuTrach = $vaiTro === 'GVHD'
+            && (int) $deTai['gvhd_id'] === $userId;
+
+        // Thu ky khoa: duoc xem de tai
+        $isThuKy = $vaiTro === 'THU_KY_KHOA';
+
+        /*
+         * Hoi dong:
+         * Chua cho phep xem o day vi schema/seed hien tai
+         * chua co du lieu de xac dinh "du dieu kien nghiem thu".
+         */
+        $isHoiDong = false;
+
+        // Kiem quyen tren dung doi tuong (chong IDOR)
+        if (!$isChuDeTai && !$isGvhdPhuTrach && !$isThuKy && !$isHoiDong) {
             throw new ForbiddenException('Ban khong co quyen xem de tai nay');
         }
 
