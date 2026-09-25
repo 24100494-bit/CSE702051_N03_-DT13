@@ -16,11 +16,11 @@ ON DUPLICATE KEY UPDATE `mo_ta` = VALUES(`mo_ta`);
 
 -- nguoi_dung
 INSERT INTO `nguoi_dung` (`id`,`ten_dang_nhap`,`mat_khau_hash`,`ho_ten`,`email`,`so_dien_thoai`,`created_at`,`updated_at`) VALUES
-(1,'thukykhoa','$2a$12$eImiTXuWVxfM37uY4JANjO3.8P2YVn4aZ8EexuGjQJ0R.eH2B.7iG','Thư Ký Khoa CNTT','thuky@huce.edu.vn','0901111111','2026-09-23 03:42:43','2026-09-23 03:42:43'),
-(2,'gv_nguyen_van_a','$2a$12$eImiTXuWVxfM37uY4JANjO3.8P2YVn4aZ8EexuGjQJ0R.eH2B.7iG','TS. Nguyễn Văn A','anguyen@huce.edu.vn','0902222222','2026-09-23 03:42:43','2026-09-23 03:42:43'),
-(3,'sv_tran_van_b','$2a$12$eImiTXuWVxfM37uY4JANjO3.8P2YVn4aZ8EexuGjQJ0R.eH2B.7iG','Trần Văn B (Nhóm trưởng)','btran@st.huce.edu.vn','0903333333','2026-09-23 03:42:43','2026-09-23 03:42:43'),
-(4,'sv_le_thi_c','$2a$12$eImiTXuWVxfM37uY4JANjO3.8P2YVn4aZ8EexuGjQJ0R.eH2B.7iG','Lê Thị C (Thành viên)','cle@st.huce.edu.vn','0904444444','2026-09-23 03:42:43','2026-09-23 03:42:43'),
-(5,'hd_pham_van_d','$2a$12$eImiTXuWVxfM37uY4JANjO3.8P2YVn4aZ8EexuGjQJ0R.eH2B.7iG','PGS.TS. Phạm Văn D','dpham@huce.edu.vn','0905555555','2026-09-23 03:42:43','2026-09-23 03:42:43')
+(1,'thukykhoa','$2y$12$mDTNHrxV.Ln4oZ4ApqjoBe5xKDODdKBG.7wmqcZKNBG4P0wY5x.PG','Thư Ký Khoa CNTT','thuky@huce.edu.vn','0901111111','2026-09-23 03:42:43','2026-09-23 03:42:43'),
+(2,'gv_nguyen_van_a','$2y$12$E07nn6N91yxly0uepbhgsuu116sdbhxTlw8w92k34WGRwR9jzwkCO','TS. Nguyễn Văn A','anguyen@huce.edu.vn','0902222222','2026-09-23 03:42:43','2026-09-23 03:42:43'),
+(3,'sv_tran_van_b','$2y$12$N6UGL9npZ32W0rdh../2bO6HprRXSW6/WIQOUmjdWvacZqzoYMb0i','Trần Văn B (Nhóm trưởng)','btran@st.huce.edu.vn','0903333333','2026-09-23 03:42:43','2026-09-23 03:42:43'),
+(4,'sv_le_thi_c','$2y$12$axasjfcEMJal.4uNzHv.i.b7lShwZK5e8oCHbRfceYJSBJQxdWiYm','Lê Thị C (Thành viên)','cle@st.huce.edu.vn','0904444444','2026-09-23 03:42:43','2026-09-23 03:42:43'),
+(5,'hd_pham_van_d','$2y$12$lcf4JmDUv1Q3rMnh9VkinOjVLmFfiXqj9/X8CNAK3rb2ixUbvmMdm','PGS.TS. Phạm Văn D','dpham@huce.edu.vn','0905555555','2026-09-23 03:42:43','2026-09-23 03:42:43')
 ON DUPLICATE KEY UPDATE `ho_ten` = VALUES(`ho_ten`);
 
 -- nguoi_dung_vai_tro
