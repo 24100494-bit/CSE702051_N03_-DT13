@@ -2,31 +2,17 @@
 
 namespace App\Repositories;
 
-use CodeIgniter\Database\ConnectionInterface;
-
 /**
- * TANG TRUY CAP DU LIEU (Repository)
+ * TANG TRUY CAP DU LIEU (Repository) - bang `de_tai`, thuc the trung tam cua he thong
  * CHI duoc: truy van tham so hoa, tra ve mang du lieu tho.
  * KHONG duoc: chua dieu kien nghiep vu, kiem tra quyen.
+ * findById() ke thua tu BaseRepository.
  */
-class DeTaiRepository
+class DeTaiRepository extends BaseRepository
 {
-    protected ConnectionInterface $db;
+    protected string $table = 'de_tai';
 
-    public function __construct(ConnectionInterface $db)
-    {
-        $this->db = $db;
-    }
-
-    public function findById(int $id): ?array
-    {
-        $row = $this->db->table('de_tai')
-            ->where('id', $id)
-            ->get()
-            ->getRowArray();
-
-        return $row ?: null;
-    }
+    protected array $allowedFields = ['ten_de_tai', 'mo_ta_pham_vi', 'trang_thai', 'sinh_vien_de_xuat_id', 'gvhd_id', 'lop_hoc_phan_id'];
 
     public function findAllPaginated(int $page, int $size, ?string $trangThai = null): array
     {
@@ -45,5 +31,57 @@ class DeTaiRepository
             ->getResultArray();
 
         return ['items' => $rows, 'total' => $total, 'page' => $page, 'size' => $size];
+    }
+
+    /** Danh sach de tai theo lop hoc phan, loc theo trang thai (tuy chon) */
+    public function findByLopHocPhan(int $lopHocPhanId, ?string $trangThai = null): array
+    {
+        $builder = $this->db->table('de_tai')->where('lop_hoc_phan_id', $lopHocPhanId);
+
+        if ($trangThai !== null) {
+            $builder->where('trang_thai', $trangThai);
+        }
+
+        return $builder->orderBy('created_at', 'DESC')->get()->getResultArray();
+    }
+
+    /** De tai ma mot GVHD dang huong dan */
+    public function findByGvhd(int $gvhdId): array
+    {
+        return $this->db->table('de_tai')
+            ->where('gvhd_id', $gvhdId)
+            ->orderBy('created_at', 'DESC')
+            ->get()
+            ->getResultArray();
+    }
+
+    /** De tai ma mot sinh vien tham gia, qua bang trung gian thanh_vien_nhom (dung cho kiem quyen tren doi tuong) */
+    public function findByThanhVien(int $sinhVienId): array
+    {
+        return $this->db->table('de_tai dt')
+            ->select('dt.*')
+            ->join('thanh_vien_nhom tvn', 'tvn.de_tai_id = dt.id')
+            ->where('tvn.sinh_vien_id', $sinhVienId)
+            ->orderBy('dt.created_at', 'DESC')
+            ->get()
+            ->getResultArray();
+    }
+
+    public function create(array $data): int
+    {
+        // $data: ten_de_tai, mo_ta_pham_vi, sinh_vien_de_xuat_id, lop_hoc_phan_id, [trang_thai, gvhd_id]
+        $data['trang_thai'] ??= 'pending';
+
+        return $this->insert($data);
+    }
+
+    public function capNhatTrangThai(int $id, string $trangThaiMoi): bool
+    {
+        return $this->update($id, ['trang_thai' => $trangThaiMoi]);
+    }
+
+    public function ganGvhd(int $id, int $gvhdId): bool
+    {
+        return $this->update($id, ['gvhd_id' => $gvhdId]);
     }
 }
