@@ -3,6 +3,7 @@
 namespace App\Controllers;
 
 use App\Exceptions\ApiException;
+use App\Exceptions\UnauthenticatedException;
 use CodeIgniter\Controller;
 use CodeIgniter\HTTP\RequestInterface;
 use CodeIgniter\HTTP\ResponseInterface;
@@ -20,6 +21,26 @@ class BaseController extends Controller
     public function initController(RequestInterface $request, ResponseInterface $response, LoggerInterface $logger)
     {
         parent::initController($request, $response, $logger);
+    }
+
+    /**
+     * Nguoi dung dang dang nhap, lay tu phien (do XacThucController ghi vao khi dang nhap).
+     * 'vai_tro' la vai tro dau tien de khop cach tang Service dang so sanh,
+     * 'danh_sach_vai_tro' la day du khi mot nguoi co nhieu vai tro.
+     */
+    protected function nguoiDungHienTai(): array
+    {
+        $nguoiDung = session()->get('nguoi_dung');
+
+        if (! $nguoiDung) {
+            throw new UnauthenticatedException();
+        }
+
+        return [
+            'id'                => $nguoiDung['id'],
+            'vai_tro'           => $nguoiDung['danh_sach_vai_tro'][0] ?? '',
+            'danh_sach_vai_tro' => $nguoiDung['danh_sach_vai_tro'],
+        ];
     }
 
     /** Tra ve phan hoi thanh cong dung dinh dang chung */
