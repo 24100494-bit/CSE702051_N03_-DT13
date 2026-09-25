@@ -2,57 +2,49 @@
 
 namespace App\Controllers;
 
+use App\Exceptions\ApiException;
 use CodeIgniter\Controller;
-use CodeIgniter\HTTP\CLIRequest;
-use CodeIgniter\HTTP\IncomingRequest;
 use CodeIgniter\HTTP\RequestInterface;
 use CodeIgniter\HTTP\ResponseInterface;
 use Psr\Log\LoggerInterface;
 
 /**
- * Class BaseController
- *
- * BaseController provides a convenient place for loading components
- * and performing functions that are needed by all your controllers.
- * Extend this class in any new controllers:
- *     class Home extends BaseController
- *
- * For security be sure to declare any new methods as protected or private.
+ * File nay CodeIgniter da tu sinh san khi cai dat (composer create-project).
+ * Ban CHI CAN THEM 2 ham respondSuccess() va respondError() vao cuoi class co san,
+ * KHONG xoa nhung gi CodeIgniter da sinh ra ben tren.
  */
-abstract class BaseController extends Controller
+class BaseController extends Controller
 {
-    /**
-     * Instance of the main Request object.
-     *
-     * @var CLIRequest|IncomingRequest
-     */
-    protected $request;
-
-    /**
-     * An array of helpers to be loaded automatically upon
-     * class instantiation. These helpers will be available
-     * to all other controllers that extend BaseController.
-     *
-     * @var list<string>
-     */
     protected $helpers = [];
 
-    /**
-     * Be sure to declare properties for any property fetch you initialized.
-     * The creation of dynamic property is deprecated in PHP 8.2.
-     */
-    // protected $session;
-
-    /**
-     * @return void
-     */
     public function initController(RequestInterface $request, ResponseInterface $response, LoggerInterface $logger)
     {
-        // Do Not Edit This Line
         parent::initController($request, $response, $logger);
+    }
 
-        // Preload any models, libraries, etc, here.
+    /** Tra ve phan hoi thanh cong dung dinh dang chung */
+    protected function respondSuccess($data, int $status = 200)
+    {
+        return $this->response->setStatusCode($status)->setJSON(['data' => $data]);
+    }
 
-        // E.g.: $this->session = \Config\Services::session();
+    /**
+     * Tra ve phan hoi loi dung cau truc da chot trong QUYUOC_MA_NGUON.md.
+     * Chi tiet loi that (that ra la gi) CHI ghi vao log, KHONG bao gio tra ve nguoi dung -- dung BM9.
+     */
+    protected function respondError(ApiException $e)
+    {
+        $requestId = bin2hex(random_bytes(8));
+
+        log_message('error', '[' . $requestId . '] ' . $e->getMessage());
+
+        return $this->response->setStatusCode($e->getStatusCode())->setJSON([
+            'error' => [
+                'code'      => $e->getErrorCode(),
+                'message'   => $e->getMessage(),
+                'details'   => $e->getDetails(),
+                'requestId' => $requestId,
+            ],
+        ]);
     }
 }
