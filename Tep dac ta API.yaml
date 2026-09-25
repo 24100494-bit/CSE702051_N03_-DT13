@@ -720,7 +720,7 @@ components:
     phienDangNhap:
       type: apiKey
       in: cookie
-      name: laravel_session
+      name: ci_session
       description: Cookie phiên có HttpOnly, Secure, SameSite=Lax (rủi ro BM7)
 
   parameters:
@@ -752,20 +752,23 @@ components:
     PhanHoi:
       type: object
       properties:
-        status: { type: string, example: success }
         data: { type: object }
-        message: { type: string, example: Thao tác thành công }
     Loi:
       type: object
       properties:
-        status: { type: string, example: error }
-        code: { type: integer, example: 422 }
-        message: { type: string, example: Dữ liệu không hợp lệ }
-        errors:
+        error:
           type: object
-          additionalProperties:
-            type: array
-            items: { type: string }
+          properties:
+            code: { type: string, example: VALIDATION_FAILED }
+            message: { type: string, example: Du lieu dau vao khong hop le }
+            details:
+              type: array
+              items:
+                type: object
+                properties:
+                  field: { type: string, example: ten_de_tai }
+                  issue: { type: string, example: Khong duoc de trong }
+            requestId: { type: string, example: a7f3c1e2b4d6f809 }
       description: >
         Cấu trúc lỗi thống nhất theo Quy ước mã nguồn – Nhóm 03. Không chứa câu lệnh SQL,
         đường dẫn tệp hay vết gọi hàm (rủi ro BM9).
