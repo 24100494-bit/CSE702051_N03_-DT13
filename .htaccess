@@ -1,0 +1,17 @@
+# Dat o thu muc goc tren InfinityFree (htdocs).
+# Nha cung cap khong cho doi thu muc goc web ve public/ nen chuyen moi yeu cau vao public/,
+# nho vay .env, app/, vendor/, writable/ khong the tai truc tiep qua trinh duyet (Muc 5.1, 8.3).
+
+Options -Indexes
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    # Bat buoc HTTPS
+    RewriteCond %{HTTPS} off
+    RewriteCond %{HTTP:X-Forwarded-Proto} !https
+    RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+
+    RewriteCond %{REQUEST_URI} !^/public/
+    RewriteRule ^(.*)$ public/$1 [L]
+</IfModule>
