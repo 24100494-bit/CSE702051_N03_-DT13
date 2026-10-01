@@ -236,17 +236,18 @@ paths:
     post:
       tags: [Đề tài]
       summary: Đề xuất đề tài mới (YCCN-05, UC01)
-      description: Chỉ nhóm trưởng. Trạng thái khởi tạo cho_duyet; trùng tên đề tài trong lớp trả 422.
+      description: Sinh viên chưa có đề tài đang hoạt động; người gọi trở thành nhóm trưởng. Trạng thái khởi tạo pending; trùng tên đề tài trong lớp trả 422.
       requestBody:
         required: true
         content:
           application/json:
             schema:
               type: object
-              required: [ten_de_tai, mo_ta_pham_vi]
+              required: [ten_de_tai, mo_ta_pham_vi, lop_hoc_phan_id]
               properties:
                 ten_de_tai: { type: string, maxLength: 200 }
                 mo_ta_pham_vi: { type: string }
+                lop_hoc_phan_id: { type: integer, format: int64 }
       responses:
         '201': { $ref: '#/components/responses/DaTao' }
         '401': { $ref: '#/components/responses/ChuaXacThuc' }
@@ -275,7 +276,7 @@ paths:
     patch:
       tags: [Đề tài]
       summary: Cập nhật đề tài khi còn ở trạng thái đề xuất
-      description: Chỉ sinh viên chủ đề tài, chỉ khi trạng thái là de_xuat hoặc cho_duyet.
+      description: Chỉ sinh viên đề xuất, chỉ khi trạng thái là pending hoặc rejected; đề tài rejected sửa xong quay về pending.
       requestBody:
         required: true
         content:
@@ -302,7 +303,7 @@ paths:
     post:
       tags: [Đề tài]
       summary: Duyệt đề tài (YCCN-06, UC02)
-      description: Chỉ GVHD phụ trách. Chuyển trạng thái sang da_duyet_dang_thuc_hien và ghi lịch sử.
+      description: Chỉ GVHD phụ trách, chỉ khi đề tài pending. Chuyển trạng thái sang approved, ghi nhật ký và thông báo cho nhóm trưởng.
       requestBody:
         content:
           application/json:
@@ -320,7 +321,7 @@ paths:
     post:
       tags: [Đề tài]
       summary: Từ chối, yêu cầu chỉnh sửa đề tài (YCCN-06, UC02)
-      description: Bắt buộc kèm lý do; đề tài quay về trạng thái de_xuat.
+      description: Chỉ GVHD phụ trách, chỉ khi đề tài pending. Bắt buộc kèm lý do; đề tài chuyển sang rejected để nhóm sửa và nộp lại.
       requestBody:
         required: true
         content:
@@ -478,6 +479,7 @@ paths:
       description: >
         Chỉ sinh viên chủ đề tài. Chỉ nhận .pdf và .docx, kiểm tra chữ ký tệp thực,
         dung lượng tối đa 5 MB, tên tệp lưu là chuỗi ngẫu nhiên, lưu ngoài thư mục web (BM8).
+        Đề tài phải approved hoặc in_progress, mốc cùng lớp và còn hạn; mốc đã có bản nộp trả 409.
       requestBody:
         required: true
         content:
@@ -492,6 +494,7 @@ paths:
       responses:
         '201': { $ref: '#/components/responses/DaTao' }
         '403': { $ref: '#/components/responses/KhongDuQuyen' }
+        '409': { $ref: '#/components/responses/XungDot' }
         '422': { $ref: '#/components/responses/SaiDuLieu' }
 
   /bao-cao-moc/{id}:
@@ -513,10 +516,13 @@ paths:
                       data: { $ref: '#/components/schemas/BaoCaoMoc' }
         '403': { $ref: '#/components/responses/KhongDuQuyen' }
         '404': { $ref: '#/components/responses/KhongTimThay' }
-    put:
+    post:
       tags: [Mốc tiến độ]
-      summary: Nộp lại, ghi đè khi mốc còn mở (YCCN-09)
-      description: Chỉ khi mốc đang ở trạng thái dang_mo_nop.
+      summary: Nộp lại khi bị yêu cầu bổ sung (YCCN-09)
+      description: >
+        Chỉ nhóm trưởng, chỉ từ bản nộp mới nhất của mốc đang ở trạng thái revision_requested, mốc còn hạn.
+        Tạo bản ghi báo cáo mới ở trạng thái pending; bản cũ giữ nguyên cùng nhận xét của GVHD.
+        Dùng POST vì PHP không đọc được tệp gửi bằng PUT multipart.
       requestBody:
         required: true
         content:
@@ -528,7 +534,7 @@ paths:
                 tep: { type: string, format: binary }
                 ghi_chu: { type: string }
       responses:
-        '200': { $ref: '#/components/responses/ThanhCong' }
+        '201': { $ref: '#/components/responses/DaTao' }
         '403': { $ref: '#/components/responses/KhongDuQuyen' }
         '422': { $ref: '#/components/responses/SaiTrangThai' }
 
@@ -555,7 +561,7 @@ paths:
     post:
       tags: [Mốc tiến độ]
       summary: Yêu cầu bổ sung báo cáo mốc (YCCN-10, UC04)
-      description: Bắt buộc kèm nhận xét; mốc quay về dang_mo_nop.
+      description: Chỉ GVHD phụ trách, chỉ khi báo cáo pending. Bắt buộc kèm nhận xét; báo cáo chuyển sang revision_requested để nhóm nộp lại.
       requestBody:
         required: true
         content:
@@ -745,10 +751,10 @@ components:
       enum: [SINH_VIEN, GVHD, THU_KY_KHOA, HOI_DONG]
     TrangThaiDeTai:
       type: string
-      enum: [de_xuat, cho_duyet, da_duyet_dang_thuc_hien, tu_choi, da_nghiem_thu]
+      enum: [pending, approved, rejected, in_progress, completed]
     TrangThaiMoc:
       type: string
-      enum: [chua_den_han, dang_mo_nop, cho_duyet, yeu_cau_bo_sung, hoan_thanh, qua_han]
+      enum: [pending, approved, revision_requested, overdue]
     PhanHoi:
       type: object
       properties:
@@ -849,6 +855,11 @@ components:
           schema: { $ref: '#/components/schemas/Loi' }
     SaiTrangThai:
       description: Vi phạm quy tắc chuyển trạng thái (422)
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Loi' }
+    XungDot:
+      description: Xung đột trạng thái (409)
       content:
         application/json:
           schema: { $ref: '#/components/schemas/Loi' }
