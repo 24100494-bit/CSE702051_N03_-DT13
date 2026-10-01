@@ -22,6 +22,29 @@ class BaoCaoMocRepository extends BaseRepository
         return $builder->orderBy('created_at', 'DESC')->get()->getResultArray();
     }
 
+    /** Ban nop moi nhat cua mot de tai cho mot moc (moi lan nop lai la mot ban ghi moi) */
+    public function findMoiNhat(int $deTaiId, int $mocThoiGianId): ?array
+    {
+        $row = $this->db->table('bao_cao_moc')
+            ->where('de_tai_id', $deTaiId)
+            ->where('moc_thoi_gian_id', $mocThoiGianId)
+            ->orderBy('created_at', 'DESC')
+            ->orderBy('id', 'DESC')
+            ->limit(1)
+            ->get()
+            ->getRowArray();
+
+        return $row ?: null;
+    }
+
+    /** Doc va khoa dong bao cao trong giao dich */
+    public function findByIdForUpdate(int $id): ?array
+    {
+        $row = $this->db->query('SELECT * FROM bao_cao_moc WHERE id = ? FOR UPDATE', [$id])->getRowArray();
+
+        return $row ?: null;
+    }
+
     public function create(array $data): int
     {
         // $data: de_tai_id, moc_thoi_gian_id, duong_dan_tep, ten_tep_goc, [trang_thai]
@@ -30,7 +53,7 @@ class BaoCaoMocRepository extends BaseRepository
         return $this->insert($data);
     }
 
-    public function duyet(int $id, string $nhanXet): bool
+    public function duyet(int $id, ?string $nhanXet): bool
     {
         return $this->update($id, ['trang_thai' => 'approved', 'nhan_xet_gv' => $nhanXet]);
     }
