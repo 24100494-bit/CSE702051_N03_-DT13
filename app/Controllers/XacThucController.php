@@ -6,6 +6,7 @@ use App\Exceptions\ApiException;
 use App\Exceptions\ValidationException;
 use App\Repositories\NguoiDungRepository;
 use App\Services\XacThucService;
+use CodeIgniter\HTTP\Exceptions\HTTPException;
 use Config\Database;
 
 /**
@@ -110,10 +111,14 @@ class XacThucController extends BaseController
         return new XacThucService(new NguoiDungRepository(Database::connect()));
     }
 
-    /** Nhan ca JSON lan form */
+    /** Nhan ca JSON lan form; JSON hong tra 422 thay vi de loi 500 */
     private function docThan(): array
     {
-        $json = $this->request->getJSON(true);
+        try {
+            $json = $this->request->getJSON(true);
+        } catch (HTTPException $e) {
+            throw new ValidationException([['field' => 'body', 'issue' => 'Than yeu cau khong phai JSON hop le (UTF-8)']]);
+        }
 
         return is_array($json) ? $json : $this->request->getPost();
     }
