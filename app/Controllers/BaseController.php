@@ -40,6 +40,7 @@ class BaseController extends Controller
             'id'                => $nguoiDung['id'],
             'vai_tro'           => $nguoiDung['danh_sach_vai_tro'][0] ?? '',
             'danh_sach_vai_tro' => $nguoiDung['danh_sach_vai_tro'],
+            'ip'                => $this->request->getIPAddress(),
         ];
     }
 

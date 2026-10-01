@@ -76,6 +76,9 @@ abstract class BaseRepository
     /** Giao dich do tang Service mo/dong khi ghi nhieu bang */
     public function transBegin(): void
     {
+        // Bat buoc nem loi khi mot cau lenh trong giao dich that bai, de Service bat duoc va hoan nguyen;
+        // mac dinh CodeIgniter chi danh dau that bai ma khong nem, khien transCommit() ghi do dang
+        $this->db->transException(true);
         $this->db->transBegin();
     }
 
