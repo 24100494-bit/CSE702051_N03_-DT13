@@ -39,6 +39,18 @@ class BaoCaoMocController extends BaseController
         }
     }
 
+    /** GET /api/v1/de-tai/{deTaiId}/bao-cao-moc - cac ban nop cua de tai, moi nhat truoc */
+    public function index($deTaiId = null)
+    {
+        try {
+            $deTaiId = $this->idHopLe($deTaiId, 'deTaiId');
+
+            return $this->respondSuccess($this->service()->danhSachTheoDeTai($deTaiId, $this->nguoiDungHienTai()));
+        } catch (ApiException $e) {
+            return $this->respondError($e);
+        }
+    }
+
     /** GET /api/v1/bao-cao-moc/{id} */
     public function show($id = null)
     {

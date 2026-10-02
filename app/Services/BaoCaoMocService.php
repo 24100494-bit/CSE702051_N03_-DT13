@@ -61,7 +61,7 @@ class BaoCaoMocService
             throw new ApiException(409, 'CONFLICT', 'Moc nay da co ban nop; chi duoc nop lai khi GVHD yeu cau bo sung');
         }
 
-        return $this->luuBanNop($deTai, $mocId, $tep, $currentUser, 'SUBMIT_REPORT');
+        return $this->luuBanNop($deTai, $mocId, $tep, $currentUser, 'SUBMIT_REPORT', null);
     }
 
     /** UC03 luong thay the - nop lai khi ban moi nhat dang bi yeu cau bo sung; tao ban ghi moi */
@@ -82,7 +82,7 @@ class BaoCaoMocService
         $this->trangThaiSau($baoCao, 'nop_lai');
         $this->kiemTraMoc($deTai, $mocId);
 
-        return $this->luuBanNop($deTai, $mocId, $tep, $currentUser, 'RESUBMIT_REPORT');
+        return $this->luuBanNop($deTai, $mocId, $tep, $currentUser, 'RESUBMIT_REPORT', $baoCaoId);
     }
 
     public function xem(int $baoCaoId, array $currentUser): array
@@ -92,7 +92,27 @@ class BaoCaoMocService
             throw new NotFoundException('Khong tim thay bao cao');
         }
 
-        $deTai  = $this->deTaiRepo->findById((int) $baoCao['de_tai_id']);
+        $this->kiemQuyenXem($this->deTaiRepo->findById((int) $baoCao['de_tai_id']), $currentUser);
+
+        return $this->anDuongDan($baoCao);
+    }
+
+    /** Cac ban nop cua mot de tai (moi nhat truoc), cung quyen xem voi xem() */
+    public function danhSachTheoDeTai(int $deTaiId, array $currentUser): array
+    {
+        $deTai = $this->deTaiRepo->findById($deTaiId);
+        if (!$deTai) {
+            throw new NotFoundException('Khong tim thay de tai');
+        }
+
+        $this->kiemQuyenXem($deTai, $currentUser);
+
+        return array_map(fn (array $bc) => $this->anDuongDan($bc), $this->repo->findByDeTai($deTaiId));
+    }
+
+    /** Thu ky khoa, GVHD phu trach, thanh vien nhom duoc xem bao cao cua de tai */
+    private function kiemQuyenXem(array $deTai, array $currentUser): void
+    {
         $userId = (int) $currentUser['id'];
 
         $duocXem = $this->coVaiTro($currentUser, 'THU_KY_KHOA')
@@ -103,8 +123,6 @@ class BaoCaoMocService
         if (!$duocXem) {
             throw new ForbiddenException('Ban khong co quyen xem bao cao nay');
         }
-
-        return $this->anDuongDan($baoCao);
     }
 
     /** UC04 - GVHD phu trach duyet dat */
@@ -121,24 +139,37 @@ class BaoCaoMocService
 
     /**
      * Luu tep ra ngoai thu muc web voi ten ngau nhien, roi ghi bao_cao_moc + nhat ky + thong bao trong mot giao dich.
-     * Neu ghi CSDL loi thi xoa tep vua luu de khong con tep mo coi.
+     * Dong de tai duoc khoa va ban nop moi nhat duoc kiem lai trong giao dich, de hai lan nop dong thoi
+     * khong cung tao ban ghi. Neu ghi CSDL loi thi xoa tep vua luu de khong con tep mo coi.
+     *
+     * @param int|null $nopLaiTuId null = nop lan dau; co gia tri = nop lai tu ban nop nay
      */
-    private function luuBanNop(array $deTai, int $mocId, ?UploadedFile $tep, array $currentUser, string $hanhDong): array
+    private function luuBanNop(array $deTai, int $mocId, ?UploadedFile $tep, array $currentUser, string $hanhDong, ?int $nopLaiTuId): array
     {
-        $duoi   = $this->kiemTraTep($tep);
-        $tenLuu = bin2hex(random_bytes(16)) . '.' . $duoi;
-        $tenGoc = mb_substr($tep->getClientName(), 0, 255);
-
-        if (!is_dir($this->thuMucLuu)) {
-            mkdir($this->thuMucLuu, 0755, true);
-        }
-        $tep->move($this->thuMucLuu, $tenLuu);
+        $duoi     = $this->kiemTraTep($tep);
+        $tenLuu   = bin2hex(random_bytes(16)) . '.' . $duoi;
+        $tenGoc   = mb_substr($tep->getClientName(), 0, 255);
         $duongDan = $this->thuMucLuu . DIRECTORY_SEPARATOR . $tenLuu;
 
         $userId = (int) $currentUser['id'];
 
         $this->repo->transBegin();
         try {
+            $this->deTaiRepo->findByIdForUpdate((int) $deTai['id']);
+            $moiNhat = $this->repo->findMoiNhat((int) $deTai['id'], $mocId);
+
+            if ($nopLaiTuId === null && $moiNhat) {
+                throw new ApiException(409, 'CONFLICT', 'Moc nay da co ban nop; chi duoc nop lai khi GVHD yeu cau bo sung');
+            }
+            if ($nopLaiTuId !== null && (!$moiNhat || (int) $moiNhat['id'] !== $nopLaiTuId || $moiNhat['trang_thai'] !== 'revision_requested')) {
+                throw new ApiException(422, 'INVALID_TRANSITION', 'Chi duoc nop lai tu ban nop moi nhat dang bi yeu cau bo sung');
+            }
+
+            if (!is_dir($this->thuMucLuu)) {
+                mkdir($this->thuMucLuu, 0755, true);
+            }
+            $tep->move($this->thuMucLuu, $tenLuu);
+
             $id = $this->repo->create([
                 'de_tai_id'        => (int) $deTai['id'],
                 'moc_thoi_gian_id' => $mocId,
@@ -240,6 +271,9 @@ class BaoCaoMocService
     /** Kiem tra co tep, dung luong, duoi tep va chu ky tep thuc; tra ve duoi tep */
     private function kiemTraTep(?UploadedFile $tep): string
     {
+        if ($tep !== null && in_array($tep->getError(), [UPLOAD_ERR_INI_SIZE, UPLOAD_ERR_FORM_SIZE], true)) {
+            throw new ValidationException([['field' => 'tep', 'issue' => 'Dung luong toi da 5 MB']]);
+        }
         if ($tep === null || !$tep->isValid()) {
             throw new ValidationException([['field' => 'tep', 'issue' => 'Bat buoc gui tep bao cao']]);
         }
