@@ -25,9 +25,29 @@ abstract class BaseRepository
      */
     protected array $allowedFields = [];
 
+    /** Ket noi da duoc dat mui gio phien (moi ket noi chi dat mot lan) */
+    private static array $ketNoiDaDatMuiGio = [];
+
     public function __construct(ConnectionInterface $db)
     {
         $this->db = $db;
+        $this->datMuiGioPhien();
+    }
+
+    /**
+     * Dat mui gio phien CSDL trung voi mui gio ung dung (App::$appTimezone),
+     * de NOW(), CURRENT_TIMESTAMP va cot TIMESTAMP cung gio voi PHP, khong phu thuoc gio may chu CSDL.
+     */
+    private function datMuiGioPhien(): void
+    {
+        $khoa = spl_object_id($this->db);
+
+        if (isset(self::$ketNoiDaDatMuiGio[$khoa])) {
+            return;
+        }
+
+        $this->db->query('SET time_zone = ?', [date('P')]);
+        self::$ketNoiDaDatMuiGio[$khoa] = true;
     }
 
     public function findById(int $id): ?array

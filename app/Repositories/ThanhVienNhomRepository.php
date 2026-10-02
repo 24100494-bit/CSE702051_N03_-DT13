@@ -55,4 +55,17 @@ class ThanhVienNhomRepository
             ->where('sinh_vien_id', $sinhVienId)
             ->countAllResults() > 0;
     }
+
+    /** Vai tro trong nhom (leader / member) cua sinh vien, null neu khong thuoc nhom */
+    public function findVaiTroNhom(int $deTaiId, int $sinhVienId): ?string
+    {
+        $row = $this->db->table('thanh_vien_nhom')
+            ->select('vai_tro_nhom')
+            ->where('de_tai_id', $deTaiId)
+            ->where('sinh_vien_id', $sinhVienId)
+            ->get()
+            ->getRowArray();
+
+        return $row['vai_tro_nhom'] ?? null;
+    }
 }
