@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Exceptions\ApiException;
 use App\Exceptions\UnauthenticatedException;
 use App\Exceptions\ValidationException;
 use App\Repositories\NguoiDungRepository;
@@ -13,7 +14,7 @@ use Throwable;
  */
 class XacThucService
 {
-    private const BCRYPT_COST = 12;
+    public const BCRYPT_COST = 12;
 
     /**
      * Ma bam gia de van chay password_verify khi ten dang nhap khong ton tai,
@@ -77,6 +78,11 @@ class XacThucService
             throw new UnauthenticatedException('Sai ten dang nhap hoac mat khau');
         }
 
+        // Chi bao bi khoa khi da dung mat khau, de nguoi ngoai khong do duoc tai khoan nao bi khoa
+        if ((int) $nguoiDung['bi_khoa'] === 1) {
+            throw new ApiException(403, 'ACCOUNT_LOCKED', 'Tai khoan dang bi khoa, lien he thu ky khoa');
+        }
+
         if (password_needs_rehash($nguoiDung['mat_khau_hash'], PASSWORD_BCRYPT, ['cost' => self::BCRYPT_COST])) {
             $this->repo->updateMatKhauHash(
                 (int) $nguoiDung['id'],
@@ -95,5 +101,32 @@ class XacThucService
         $hoSo['vai_tro'] =array_map('strtolower', $this->repo->getVaiTro($id));
 
         return $hoSo;
+    }
+
+    /** F1.5 - cap nhat ho so ca nhan: chi ho ten, email, so dien thoai; khong doi vai tro */
+    public function capNhatHoSo(int $id, array $input): array
+    {
+        if (isset($input['email']) && $this->repo->existsEmailKhac($input['email'], $id)) {
+            throw new ValidationException([['field' => 'email', 'issue' => 'Email da duoc su dung']]);
+        }
+
+        $this->repo->capNhatThongTin($id, $input);
+
+        return $this->layHoSo($id);
+    }
+
+    /** F1.4 - doi mat khau, bat buoc dung mat khau cu */
+    public function doiMatKhau(int $id, string $matKhauCu, string $matKhauMoi): void
+    {
+        $hash = $this->repo->findMatKhauHash($id);
+
+        if ($hash === null || ! password_verify($matKhauCu, $hash)) {
+            throw new ValidationException([['field' => 'mat_khau_cu', 'issue' => 'Mat khau cu khong dung']]);
+        }
+        if (password_verify($matKhauMoi, $hash)) {
+            throw new ValidationException([['field' => 'mat_khau_moi', 'issue' => 'Mat khau moi phai khac mat khau cu']]);
+        }
+
+        $this->repo->updateMatKhauHash($id, password_hash($matKhauMoi, PASSWORD_BCRYPT, ['cost' => self::BCRYPT_COST]));
     }
 }
