@@ -115,15 +115,19 @@ class DeTaiService
     {
         $userId = (int) $currentUser['id'];
 
-        if ($this->repo->coDeTaiDangHoatDong($userId)) {
-            throw new ApiException(422, 'DA_CO_DE_TAI', 'Sinh vien dang co de tai chua bi tu choi, khong de xuat them');
-        }
-        if ($this->repo->existsTenTrongLop($input['lop_hoc_phan_id'], $input['ten_de_tai'])) {
-            throw new ValidationException([['field' => 'ten_de_tai', 'issue' => 'Trung ten de tai da co trong lop, vui long doi ten']]);
-        }
-
         $this->repo->transBegin();
         try {
+            // Khoa dong sinh vien va dong lop truoc khi kiem tra, de hai de xuat dong thoi khong cung lot qua
+            if (!$this->repo->khoaTruocKhiDeXuat($userId, (int) $input['lop_hoc_phan_id'])) {
+                throw new ValidationException([['field' => 'lop_hoc_phan_id', 'issue' => 'Lop hoc phan khong ton tai']]);
+            }
+            if ($this->repo->coDeTaiDangHoatDong($userId)) {
+                throw new ApiException(422, 'DA_CO_DE_TAI', 'Sinh vien dang co de tai chua bi tu choi, khong de xuat them');
+            }
+            if ($this->repo->existsTenTrongLop($input['lop_hoc_phan_id'], $input['ten_de_tai'])) {
+                throw new ValidationException([['field' => 'ten_de_tai', 'issue' => 'Trung ten de tai da co trong lop, vui long doi ten']]);
+            }
+
             $id = $this->repo->create([
                 'ten_de_tai'           => $input['ten_de_tai'],
                 'mo_ta_pham_vi'        => $input['mo_ta_pham_vi'],
