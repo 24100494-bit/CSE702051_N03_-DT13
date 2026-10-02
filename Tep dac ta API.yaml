@@ -74,6 +74,11 @@ paths:
       responses:
         '200': { $ref: '#/components/responses/ThanhCong' }
         '401': { $ref: '#/components/responses/ChuaXacThuc' }
+        '403':
+          description: Tài khoản đang bị khóa (code ACCOUNT_LOCKED); chỉ báo khi đã đúng mật khẩu
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Loi' }
         '429': { $ref: '#/components/responses/VuotTanSuat' }
 
   /auth/dang-xuat:
@@ -140,7 +145,7 @@ paths:
     patch:
       tags: [Người dùng và xác thực]
       summary: Cập nhật hồ sơ cá nhân (YCCN-22)
-      description: Chỉ sửa thông tin liên hệ, không đổi vai trò.
+      description: Chỉ sửa thông tin liên hệ, không đổi vai trò. Email trùng người khác trả 422.
       requestBody:
         required: true
         content:
@@ -149,6 +154,7 @@ paths:
               type: object
               properties:
                 ho_ten: { type: string, maxLength: 100 }
+                email: { type: string, format: email, maxLength: 100 }
                 so_dien_thoai: { type: string, maxLength: 15 }
       responses:
         '200': { $ref: '#/components/responses/ThanhCong' }
@@ -178,20 +184,57 @@ paths:
     get:
       tags: [Người dùng và xác thực]
       summary: Danh sách người dùng
-      description: Chỉ vai trò THU_KY_KHOA.
+      description: Chỉ vai trò THU_KY_KHOA. Lọc theo vai trò, tìm theo tên đăng nhập, họ tên, email.
       parameters:
         - { name: vai_tro, in: query, schema: { $ref: '#/components/schemas/VaiTro' } }
+        - { name: q, in: query, schema: { type: string, maxLength: 100 } }
         - $ref: '#/components/parameters/Page'
         - $ref: '#/components/parameters/Size'
       responses:
         '200': { $ref: '#/components/responses/ThanhCong' }
         '403': { $ref: '#/components/responses/KhongDuQuyen' }
+        '422': { $ref: '#/components/responses/SaiDuLieu' }
+    post:
+      tags: [Người dùng và xác thực]
+      summary: Thư ký tạo tài khoản theo vai trò (GVHD, hội đồng...)
+      description: Chỉ vai trò THU_KY_KHOA. Mật khẩu băm bcrypt cost 12, không trả về mã băm.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [ten_dang_nhap, mat_khau, ho_ten, email, vai_tro]
+              properties:
+                ten_dang_nhap: { type: string, maxLength: 50 }
+                mat_khau: { type: string, minLength: 8, maxLength: 72 }
+                ho_ten: { type: string, maxLength: 100 }
+                email: { type: string, format: email, maxLength: 100 }
+                so_dien_thoai: { type: string, maxLength: 15 }
+                vai_tro: { $ref: '#/components/schemas/VaiTro' }
+      responses:
+        '201': { $ref: '#/components/responses/DaTao' }
+        '403': { $ref: '#/components/responses/KhongDuQuyen' }
+        '422': { $ref: '#/components/responses/SaiDuLieu' }
+
+  /nguoi-dung/{id}:
+    parameters: [ { $ref: '#/components/parameters/Id' } ]
+    get:
+      tags: [Người dùng và xác thực]
+      summary: Xem chi tiết tài khoản
+      description: Chỉ vai trò THU_KY_KHOA.
+      responses:
+        '200': { $ref: '#/components/responses/ThanhCong' }
+        '403': { $ref: '#/components/responses/KhongDuQuyen' }
+        '404': { $ref: '#/components/responses/KhongTimThay' }
 
   /nguoi-dung/{id}/trang-thai:
     patch:
       tags: [Người dùng và xác thực]
       summary: Khóa, mở tài khoản, đổi vai trò
-      description: Chỉ vai trò THU_KY_KHOA.
+      description: >
+        Chỉ vai trò THU_KY_KHOA. Gửi ít nhất một trong hai trường. Đổi vai trò là thay toàn bộ vai trò
+        bằng vai trò mới. Thư ký không tự khóa mình hoặc tự bỏ vai trò thư ký (422).
       parameters: [ { $ref: '#/components/parameters/Id' } ]
       requestBody:
         required: true
@@ -205,6 +248,8 @@ paths:
       responses:
         '200': { $ref: '#/components/responses/ThanhCong' }
         '403': { $ref: '#/components/responses/KhongDuQuyen' }
+        '404': { $ref: '#/components/responses/KhongTimThay' }
+        '422': { $ref: '#/components/responses/SaiDuLieu' }
 
   /public/de-tai:
     get:
@@ -345,39 +390,27 @@ paths:
         '200': { $ref: '#/components/responses/ThanhCong' }
         '403': { $ref: '#/components/responses/KhongDuQuyen' }
 
-  /nhom-sinh-vien:
-    post:
-      tags: [Nhóm sinh viên]
-      summary: Tạo nhóm sinh viên
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [ten_nhom, lop_hoc_phan_id]
-              properties:
-                ten_nhom: { type: string, maxLength: 100 }
-                lop_hoc_phan_id: { type: integer, format: int64 }
-      responses:
-        '201': { $ref: '#/components/responses/DaTao' }
-        '403': { $ref: '#/components/responses/KhongDuQuyen' }
-
   /nhom-sinh-vien/{id}:
     parameters: [ { $ref: '#/components/parameters/Id' } ]
     get:
       tags: [Nhóm sinh viên]
       summary: Xem chi tiết nhóm sinh viên
+      description: >
+        Mã nhóm {id} chính là mã đề tài: nhóm được tạo cùng lúc sinh viên đề xuất đề tài, người đề xuất là
+        nhóm trưởng. Trả về đề tài, GVHD và danh sách thành viên. Thành viên nhóm và thư ký khoa được xem.
       responses:
         '200': { $ref: '#/components/responses/ThanhCong' }
         '403': { $ref: '#/components/responses/KhongDuQuyen' }
+        '404': { $ref: '#/components/responses/KhongTimThay' }
 
   /nhom-sinh-vien/{id}/gvhd:
     parameters: [ { $ref: '#/components/parameters/Id' } ]
     patch:
       tags: [Nhóm sinh viên]
       summary: Phân công GVHD cho nhóm (YCCN-07)
-      description: Chỉ vai trò THU_KY_KHOA.
+      description: >
+        Chỉ vai trò THU_KY_KHOA, chỉ khi đề tài đang pending. gvhd_id phải là tài khoản GVHD không bị khóa.
+        Đổi GVHD, ghi nhật ký ASSIGN_SUPERVISOR, gửi thông báo cho GVHD (UC01 bước 4) và nhóm trưởng trong một giao dịch.
       requestBody:
         required: true
         content:
@@ -390,6 +423,7 @@ paths:
       responses:
         '200': { $ref: '#/components/responses/ThanhCong' }
         '403': { $ref: '#/components/responses/KhongDuQuyen' }
+        '404': { $ref: '#/components/responses/KhongTimThay' }
         '422': { $ref: '#/components/responses/SaiDuLieu' }
 
   /nhom-sinh-vien/{id}/thanh-vien:
@@ -397,6 +431,9 @@ paths:
     post:
       tags: [Nhóm sinh viên]
       summary: Thêm thành viên nhóm
+      description: >
+        Nhóm trưởng hoặc thư ký khoa; đề tài chưa completed. Chỉ thêm vai trò member. Sinh viên đã ở nhóm
+        trả 409; sinh viên đang thuộc nhóm của đề tài khác trả 422 DA_CO_DE_TAI.
       requestBody:
         required: true
         content:
@@ -406,10 +443,12 @@ paths:
               required: [sinh_vien_id]
               properties:
                 sinh_vien_id: { type: integer, format: int64 }
-                vai_tro_nhom: { type: string, enum: [leader, member], default: member }
+                vai_tro_nhom: { type: string, enum: [member], default: member }
       responses:
         '201': { $ref: '#/components/responses/DaTao' }
         '403': { $ref: '#/components/responses/KhongDuQuyen' }
+        '409': { $ref: '#/components/responses/XungDot' }
+        '422': { $ref: '#/components/responses/SaiDuLieu' }
 
   /nhom-sinh-vien/{id}/thanh-vien/{svId}:
     parameters:
@@ -418,17 +457,92 @@ paths:
     delete:
       tags: [Nhóm sinh viên]
       summary: Xóa thành viên khỏi nhóm
+      description: Nhóm trưởng hoặc thư ký khoa. Không xóa nhóm trưởng (422).
       responses:
         '204': { description: Đã xóa }
         '403': { $ref: '#/components/responses/KhongDuQuyen' }
+        '404': { $ref: '#/components/responses/KhongTimThay' }
+        '422': { $ref: '#/components/responses/SaiDuLieu' }
+
+  /lop-hoc-phan:
+    get:
+      tags: [Mốc tiến độ]
+      summary: Danh sách lớp học phần
+      description: Mọi vai trò đã đăng nhập (F3.2).
+      responses:
+        '200': { $ref: '#/components/responses/ThanhCong' }
+        '401': { $ref: '#/components/responses/ChuaXacThuc' }
+    post:
+      tags: [Mốc tiến độ]
+      summary: Thêm lớp học phần
+      description: Chỉ vai trò THU_KY_KHOA (F3.1). Mã lớp không trùng.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [ma_lop, ten_lop, hoc_ky, nam_hoc]
+              properties:
+                ma_lop: { type: string, maxLength: 20 }
+                ten_lop: { type: string, maxLength: 100 }
+                hoc_ky: { type: string, enum: [HK1, HK2, HK3] }
+                nam_hoc: { type: string, maxLength: 20 }
+      responses:
+        '201': { $ref: '#/components/responses/DaTao' }
+        '403': { $ref: '#/components/responses/KhongDuQuyen' }
+        '422': { $ref: '#/components/responses/SaiDuLieu' }
+
+  /lop-hoc-phan/{id}:
+    parameters: [ { $ref: '#/components/parameters/Id' } ]
+    get:
+      tags: [Mốc tiến độ]
+      summary: Xem lớp học phần
+      responses:
+        '200': { $ref: '#/components/responses/ThanhCong' }
+        '404': { $ref: '#/components/responses/KhongTimThay' }
+    patch:
+      tags: [Mốc tiến độ]
+      summary: Sửa lớp học phần
+      description: Chỉ vai trò THU_KY_KHOA (F3.1). Chỉ gửi trường cần sửa.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                ma_lop: { type: string, maxLength: 20 }
+                ten_lop: { type: string, maxLength: 100 }
+                hoc_ky: { type: string, enum: [HK1, HK2, HK3] }
+                nam_hoc: { type: string, maxLength: 20 }
+      responses:
+        '200': { $ref: '#/components/responses/ThanhCong' }
+        '403': { $ref: '#/components/responses/KhongDuQuyen' }
+        '404': { $ref: '#/components/responses/KhongTimThay' }
+        '422': { $ref: '#/components/responses/SaiDuLieu' }
+    delete:
+      tags: [Mốc tiến độ]
+      summary: Xóa lớp học phần
+      description: Chỉ vai trò THU_KY_KHOA (F3.1). Lớp còn đề tài hoặc mốc trả 409.
+      responses:
+        '204': { description: Đã xóa }
+        '403': { $ref: '#/components/responses/KhongDuQuyen' }
+        '404': { $ref: '#/components/responses/KhongTimThay' }
+        '409': { $ref: '#/components/responses/XungDot' }
 
   /moc-thoi-gian:
     get:
       tags: [Mốc tiến độ]
       summary: Danh sách mốc của lớp học phần (YCCN-08)
+      description: Sắp theo hạn nộp. Hạn nộp lưu và hiển thị theo giờ Việt Nam (Asia/Ho_Chi_Minh).
+      parameters:
+        - { name: lop_hoc_phan_id, in: query, required: true, schema: { type: integer, format: int64 } }
       responses:
         '200': { $ref: '#/components/responses/ThanhCong' }
         '401': { $ref: '#/components/responses/ChuaXacThuc' }
+        '404': { $ref: '#/components/responses/KhongTimThay' }
+        '422': { $ref: '#/components/responses/SaiDuLieu' }
     post:
       tags: [Mốc tiến độ]
       summary: Cấu hình mốc thời gian chung (YCCN-08)
@@ -456,6 +570,7 @@ paths:
     patch:
       tags: [Mốc tiến độ]
       summary: Cập nhật mốc (YCCN-08)
+      description: Chỉ vai trò THU_KY_KHOA. han_nop dạng "Y-m-d H:i:s" (cũng nhận "Y-m-dTH:i" của ô datetime-local).
       requestBody:
         required: true
         content:
@@ -466,13 +581,33 @@ paths:
                 ten_moc: { type: string, maxLength: 100 }
                 mo_ta: { type: string }
                 han_nop: { type: string, format: date-time }
+                bat_buoc: { type: boolean }
       responses:
         '200': { $ref: '#/components/responses/ThanhCong' }
         '403': { $ref: '#/components/responses/KhongDuQuyen' }
+        '404': { $ref: '#/components/responses/KhongTimThay' }
+        '422': { $ref: '#/components/responses/SaiDuLieu' }
+    delete:
+      tags: [Mốc tiến độ]
+      summary: Xóa mốc
+      description: Chỉ vai trò THU_KY_KHOA (F3.1). Mốc đã có bản nộp trả 409.
+      responses:
+        '204': { description: Đã xóa }
+        '403': { $ref: '#/components/responses/KhongDuQuyen' }
+        '404': { $ref: '#/components/responses/KhongTimThay' }
+        '409': { $ref: '#/components/responses/XungDot' }
 
   /de-tai/{deTaiId}/bao-cao-moc:
     parameters:
       - { name: deTaiId, in: path, required: true, schema: { type: integer, format: int64 } }
+    get:
+      tags: [Mốc tiến độ]
+      summary: Danh sách bản nộp của đề tài, mới nhất trước
+      description: Thư ký khoa, GVHD phụ trách, thành viên nhóm. Không trả duong_dan_tep.
+      responses:
+        '200': { $ref: '#/components/responses/ThanhCong' }
+        '403': { $ref: '#/components/responses/KhongDuQuyen' }
+        '404': { $ref: '#/components/responses/KhongTimThay' }
     post:
       tags: [Mốc tiến độ]
       summary: Nộp báo cáo tiến độ theo mốc (YCCN-09, UC03)
@@ -683,7 +818,9 @@ paths:
     get:
       tags: [Thông báo]
       summary: Danh sách thông báo của tôi (YCCN-15, YCCN-16)
+      description: Mới nhất trước; kèm chua_doc là số thông báo chưa đọc.
       parameters:
+        - { name: chua_doc, in: query, description: 'true thì chỉ lấy thông báo chưa đọc', schema: { type: boolean } }
         - $ref: '#/components/parameters/Page'
         - $ref: '#/components/parameters/Size'
       responses:
@@ -695,10 +832,10 @@ paths:
     patch:
       tags: [Thông báo]
       summary: Đánh dấu thông báo đã đọc (YCCN-15)
-      description: Chỉ chủ thông báo.
+      description: Chỉ chủ thông báo; thông báo của người khác trả 404 để không lộ sự tồn tại.
       responses:
         '200': { $ref: '#/components/responses/ThanhCong' }
-        '403': { $ref: '#/components/responses/KhongDuQuyen' }
+        '404': { $ref: '#/components/responses/KhongTimThay' }
 
   /internal/moc-thoi-gian/quet-qua-han:
     post:
@@ -786,6 +923,7 @@ components:
         ho_ten: { type: string }
         email: { type: string, format: email }
         so_dien_thoai: { type: string }
+        bi_khoa: { type: boolean }
         vai_tro:
           type: array
           items: { $ref: '#/components/schemas/VaiTro' }
