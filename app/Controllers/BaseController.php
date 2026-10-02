@@ -4,7 +4,9 @@ namespace App\Controllers;
 
 use App\Exceptions\ApiException;
 use App\Exceptions\UnauthenticatedException;
+use App\Exceptions\ValidationException;
 use CodeIgniter\Controller;
+use CodeIgniter\HTTP\Exceptions\HTTPException;
 use CodeIgniter\HTTP\RequestInterface;
 use CodeIgniter\HTTP\ResponseInterface;
 use Psr\Log\LoggerInterface;
@@ -68,5 +70,38 @@ class BaseController extends Controller
                 'requestId' => $requestId,
             ],
         ]);
+    }
+
+    /** Ma tren duong dan phai la so nguyen duong, neu khong tra 422 */
+    protected function layId($id, string $truong = 'id'): int
+    {
+        $id = (int) $id;
+
+        if ($id <= 0) {
+            throw new ValidationException([['field' => $truong, 'issue' => 'Phai la so nguyen duong']]);
+        }
+
+        return $id;
+    }
+
+    /** Doc than yeu cau JSON (hoac form); JSON hong tra 422 thay vi de loi 500 */
+    protected function layThanYeuCau(): array
+    {
+        try {
+            $json = $this->request->getJSON(true);
+        } catch (HTTPException $e) {
+            throw new ValidationException([['field' => 'body', 'issue' => 'Than yeu cau khong phai JSON hop le (UTF-8)']]);
+        }
+
+        return is_array($json) ? $json : (array) $this->request->getPost();
+    }
+
+    /** Tham so phan trang page, size tu chuoi truy van; size toi da 100 */
+    protected function layPhanTrang(): array
+    {
+        $page = max(1, (int) ($this->request->getGet('page') ?? 1));
+        $size = (int) ($this->request->getGet('size') ?? 20);
+
+        return [$page, $size < 1 ? 20 : min($size, 100)];
     }
 }
