@@ -161,4 +161,17 @@ class DeTaiRepository extends BaseRepository
     {
         return $this->update($id, ['gvhd_id' => $gvhdId]);
     }
+
+    /**
+     * Khoa dong sinh vien de xuat va dong lop trong giao dich, de hai de xuat dong thoi
+     * khong cung vuot qua kiem tra "da co de tai" hay "trung ten trong lop".
+     * Tra ve false neu lop khong ton tai.
+     */
+    public function khoaTruocKhiDeXuat(int $sinhVienId, int $lopHocPhanId): bool
+    {
+        $this->db->query('SELECT id FROM nguoi_dung WHERE id = ? FOR UPDATE', [$sinhVienId]);
+        $lop = $this->db->query('SELECT id FROM lop_hoc_phan WHERE id = ? FOR UPDATE', [$lopHocPhanId])->getRowArray();
+
+        return (bool) $lop;
+    }
 }
