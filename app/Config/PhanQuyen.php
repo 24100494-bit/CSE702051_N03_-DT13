@@ -30,11 +30,11 @@ class PhanQuyen extends BaseConfig
         'F2.9'  => ['sinh_vien', 'gvhd', 'thu_ky_khoa', 'hoi_dong'], // Tim kiem, loc, phan trang de tai
         'F2.10' => ['sinh_vien', 'thu_ky_khoa'],                     // Quan ly nhom sinh vien
         'F2.11' => ['sinh_vien', 'thu_ky_khoa'],                     // Them, xoa thanh vien nhom
-        'F3.1'  => ['thu_ky_khoa'],                                  // Cau hinh moc thoi gian chung
-        'F3.2'  => ['sinh_vien', 'gvhd', 'thu_ky_khoa', 'hoi_dong'], // Xem danh sach moc
+        'F3.1'  => ['thu_ky_khoa'],                                  // Cau hinh lop hoc phan va moc thoi gian chung (them, xoa)
+        'F3.2'  => ['sinh_vien', 'gvhd', 'thu_ky_khoa', 'hoi_dong'], // Xem danh sach lop hoc phan, moc
         'F3.3'  => ['thu_ky_khoa'],                                  // Cap nhat moc
         'F3.4'  => ['sinh_vien'],                                    // Nop bao cao tien do theo moc
-        'F3.5'  => ['sinh_vien'],                                    // Nop lai, ghi de khi moc con mo
+        'F3.5'  => ['sinh_vien'],                                    // Nop lai khi bi yeu cau bo sung (tao ban ghi moi)
         'F3.6'  => ['sinh_vien', 'gvhd', 'thu_ky_khoa'],             // Xem chi tiet bao cao moc
         'F3.7'  => ['gvhd'],                                         // Duyet bao cao moc (Dat)
         'F3.8'  => ['gvhd'],                                         // Yeu cau bo sung bao cao moc

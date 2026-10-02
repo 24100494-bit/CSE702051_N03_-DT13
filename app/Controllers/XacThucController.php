@@ -106,6 +106,66 @@ class XacThucController extends BaseController
         }
     }
 
+    /** PATCH /api/v1/nguoi-dung/toi - F1.5 cap nhat ho ten, email, so dien thoai */
+    public function capNhatToi()
+    {
+        try {
+            $input = $this->docThan();
+            $data  = [];
+            $loi   = [];
+
+            if (array_key_exists('ho_ten', $input)) {
+                $data['ho_ten'] = trim((string) $input['ho_ten']);
+                if ($data['ho_ten'] === '' || mb_strlen($data['ho_ten']) > 100) {
+                    $loi[] = ['field' => 'ho_ten', 'issue' => 'Bat buoc, toi da 100 ky tu'];
+                }
+            }
+            if (array_key_exists('email', $input)) {
+                $data['email'] = trim((string) $input['email']);
+                if (! filter_var($data['email'], FILTER_VALIDATE_EMAIL) || mb_strlen($data['email']) > 100) {
+                    $loi[] = ['field' => 'email', 'issue' => 'Email khong hop le'];
+                }
+            }
+            if (array_key_exists('so_dien_thoai', $input)) {
+                $sdt                   = trim((string) $input['so_dien_thoai']);
+                $data['so_dien_thoai'] = $sdt === '' ? null : $sdt;
+                if (mb_strlen($sdt) > 15) {
+                    $loi[] = ['field' => 'so_dien_thoai', 'issue' => 'Toi da 15 ky tu'];
+                }
+            }
+            if (! $data && ! $loi) {
+                $loi[] = ['field' => 'ho_ten, email, so_dien_thoai', 'issue' => 'Can gui it nhat mot truong de sua'];
+            }
+            if ($loi) {
+                throw new ValidationException($loi);
+            }
+
+            return $this->respondSuccess($this->service()->capNhatHoSo($this->nguoiDungHienTai()['id'], $data));
+        } catch (ApiException $e) {
+            return $this->respondError($e);
+        }
+    }
+
+    /** PATCH /api/v1/nguoi-dung/toi/mat-khau - F1.4 doi mat khau */
+    public function doiMatKhau()
+    {
+        try {
+            $input  = $this->docThan();
+            $matCu  = (string) ($input['mat_khau_cu'] ?? '');
+            $matMoi = (string) ($input['mat_khau_moi'] ?? '');
+
+            if ($matCu === '' || strlen($matMoi) < 8 || strlen($matMoi) > 72) {
+                throw new ValidationException([['field' => 'mat_khau_cu, mat_khau_moi', 'issue' => 'Bat buoc; mat khau moi tu 8 den 72 ky tu']]);
+            }
+
+            $this->service()->doiMatKhau($this->nguoiDungHienTai()['id'], $matCu, $matMoi);
+
+            return $this->respondSuccess(['da_doi' => true]);
+        } catch (ApiException $e) {
+            return $this->respondError($e);
+        }
+    }
+
     private function service(): XacThucService
     {
         return new XacThucService(new NguoiDungRepository(Database::connect()));
