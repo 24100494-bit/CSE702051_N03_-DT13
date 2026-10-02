@@ -7,6 +7,7 @@
 --   2) Thêm CHECK giới hạn khoảng điểm hợp lệ (diem_nghiem_thu.diem)
 --   3) Sửa bat_buoc, da_doc thành NOT NULL (khớp ý định thiết kế, khớp từ điển dữ liệu)
 --   4) Bổ sung chỉ mục kết hợp cho các truy vấn lọc/sắp xếp thường dùng (Mục 4.2c)
+--   5) Thêm cột nguoi_dung.bi_khoa để thư ký khóa/mở tài khoản (F1.6)
 -- ============================================================
 
 SET NAMES utf8mb4;
@@ -23,6 +24,7 @@ CREATE TABLE `nguoi_dung` (
   `ho_ten`         VARCHAR(100) NOT NULL,
   `email`          VARCHAR(100) NOT NULL,
   `so_dien_thoai`  VARCHAR(15)  DEFAULT NULL,
+  `bi_khoa`        TINYINT(1)   NOT NULL DEFAULT 0,
   `created_at`     TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at`     TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),

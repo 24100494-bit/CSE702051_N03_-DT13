@@ -19,7 +19,7 @@ class BaoCaoMocRepository extends BaseRepository
             $builder->where('trang_thai', $trangThai);
         }
 
-        return $builder->orderBy('created_at', 'DESC')->get()->getResultArray();
+        return $builder->orderBy('created_at', 'DESC')->orderBy('id', 'DESC')->get()->getResultArray();
     }
 
     /** Ban nop moi nhat cua mot de tai cho mot moc (moi lan nop lai la mot ban ghi moi) */

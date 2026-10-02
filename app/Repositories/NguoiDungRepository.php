@@ -12,14 +12,14 @@ class NguoiDungRepository extends BaseRepository
 {
     protected string $table = 'nguoi_dung';
 
-    protected array $allowedFields = ['ten_dang_nhap', 'mat_khau_hash', 'ho_ten', 'email', 'so_dien_thoai'];
+    protected array $allowedFields = ['ten_dang_nhap', 'mat_khau_hash', 'ho_ten', 'email', 'so_dien_thoai', 'bi_khoa'];
 
-    private const COT_CONG_KHAI = 'id, ten_dang_nhap, ho_ten, email, so_dien_thoai, created_at';
+    private const COT_CONG_KHAI = 'id, ten_dang_nhap, ho_ten, email, so_dien_thoai, bi_khoa, created_at';
 
     public function findByTenDangNhap(string $tenDangNhap): ?array
     {
         $row = $this->db->table('nguoi_dung')
-            ->select('id, ten_dang_nhap, mat_khau_hash, ho_ten, email')
+            ->select('id, ten_dang_nhap, mat_khau_hash, ho_ten, email, bi_khoa')
             ->where('ten_dang_nhap', $tenDangNhap)
             ->get()
             ->getRowArray();
@@ -107,5 +107,76 @@ class NguoiDungRepository extends BaseRepository
             'nguoi_dung_id' => $nguoiDungId,
             'vai_tro_id'    => $vaiTro['id'],
         ]);
+    }
+
+    /** Ma bam mat khau theo id, chi dung khi doi mat khau (BM6: khong tra ra ngoai) */
+    public function findMatKhauHash(int $id): ?string
+    {
+        $row = $this->db->table('nguoi_dung')->select('mat_khau_hash')->where('id', $id)->get()->getRowArray();
+
+        return $row['mat_khau_hash'] ?? null;
+    }
+
+    /**
+     * Danh sach nguoi dung co phan trang, loc theo vai tro va tu khoa (ten dang nhap, ho ten, email).
+     * Moi dong kem chuoi vai_tro (cac ten vai tro noi bang dau phay).
+     */
+    public function findTheoBoLoc(int $page, int $size, ?string $tenVaiTro = null, ?string $tuKhoa = null): array
+    {
+        $builder = $this->db->table('nguoi_dung nd');
+
+        if ($tenVaiTro !== null) {
+            $builder->whereIn('nd.id', static fn ($sub) => $sub->select('ndvt.nguoi_dung_id')
+                ->from('nguoi_dung_vai_tro ndvt')
+                ->join('vai_tro vt', 'vt.id = ndvt.vai_tro_id')
+                ->where('vt.ten_vai_tro', $tenVaiTro));
+        }
+        if ($tuKhoa !== null) {
+            $builder->groupStart()
+                ->like('nd.ten_dang_nhap', $tuKhoa)
+                ->orLike('nd.ho_ten', $tuKhoa)
+                ->orLike('nd.email', $tuKhoa)
+                ->groupEnd();
+        }
+
+        $total = $builder->countAllResults(false);
+
+        $rows = $builder
+            ->select('nd.id, nd.ten_dang_nhap, nd.ho_ten, nd.email, nd.so_dien_thoai, nd.bi_khoa, nd.created_at')
+            ->select('(SELECT GROUP_CONCAT(vt2.ten_vai_tro ORDER BY vt2.id) FROM nguoi_dung_vai_tro ndvt2 JOIN vai_tro vt2 ON vt2.id = ndvt2.vai_tro_id WHERE ndvt2.nguoi_dung_id = nd.id) AS vai_tro', false)
+            ->orderBy('nd.id', 'ASC')
+            ->limit($size, ($page - 1) * $size)
+            ->get()
+            ->getResultArray();
+
+        return ['items' => $rows, 'total' => $total, 'page' => $page, 'size' => $size];
+    }
+
+    /** Doc va khoa dong nguoi dung trong giao dich */
+    public function findByIdForUpdate(int $id): ?array
+    {
+        $row = $this->db->query(
+            'SELECT id, ten_dang_nhap, ho_ten, email, so_dien_thoai, bi_khoa FROM nguoi_dung WHERE id = ? FOR UPDATE',
+            [$id]
+        )->getRowArray();
+
+        return $row ?: null;
+    }
+
+    public function datKhoa(int $id, bool $khoa): bool
+    {
+        return $this->update($id, ['bi_khoa' => $khoa ? 1 : 0]);
+    }
+
+    /** Thay toan bo vai tro cua nguoi dung bang mot vai tro (thao tac nam trong giao dich cua Service) */
+    public function thayVaiTro(int $nguoiDungId, string $tenVaiTro): void
+    {
+        $this->db->table('nguoi_dung_vai_tro')->where('nguoi_dung_id', $nguoiDungId)->delete();
+        $this->ganVaiTro($nguoiDungId, $tenVaiTro);
+    }
+
+    public function existsEmailKhac(string $email, int $boQuaId): bool
+    {
+        return $this->db->table('nguoi_dung')->where('email', $email)->where('id !=', $boQuaId)->countAllResults() > 0;
     }
 }
