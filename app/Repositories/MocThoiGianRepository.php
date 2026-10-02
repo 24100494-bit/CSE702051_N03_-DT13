@@ -36,4 +36,15 @@ class MocThoiGianRepository extends BaseRepository
         // $data: lop_hoc_phan_id, ten_moc, han_nop, [mo_ta, bat_buoc]
         return $this->insert($data);
     }
+
+    public function capNhat(int $id, array $data): bool
+    {
+        return $this->update($id, $data);
+    }
+
+    /** So ban nop da gan voi moc (moc da co ban nop thi khong xoa) */
+    public function demBaoCao(int $mocId): int
+    {
+        return $this->db->table('bao_cao_moc')->where('moc_thoi_gian_id', $mocId)->countAllResults();
+    }
 }
