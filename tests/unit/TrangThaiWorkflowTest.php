@@ -3,6 +3,7 @@
 namespace Tests\Unit;
 
 use App\Exceptions\ApiException;
+use App\Services\DeTaiService;
 use App\Services\TrangThaiWorkflow;
 use CodeIgniter\Test\CIUnitTestCase;
 
@@ -13,21 +14,7 @@ final class TrangThaiWorkflowTest extends CIUnitTestCase
 {
     private function deTaiWorkflow(): TrangThaiWorkflow
     {
-        return new TrangThaiWorkflow([
-            'pending' => [
-                'duyet' => 'approved',
-                'tu_choi' => 'rejected',
-                'sua' => 'pending',
-                'xoa' => null,
-            ],
-            'rejected' => [
-                'sua' => 'pending',
-                'xoa' => null,
-            ],
-            'approved' => [],
-            'in_progress' => [],
-            'completed' => [],
-        ]);
+        return new TrangThaiWorkflow(DeTaiService::CHUYEN_TRANG_THAI);
     }
 
     private function baoCaoWorkflow(): TrangThaiWorkflow
@@ -62,6 +49,30 @@ final class TrangThaiWorkflowTest extends CIUnitTestCase
     {
         $this->expectException(ApiException::class);
         $this->deTaiWorkflow()->next('approved', 'duyet');
+    }
+
+    public function testDeTaiDiQuaLuong3DenAccepted(): void
+    {
+        $workflow = $this->deTaiWorkflow();
+
+        $this->assertSame('in_progress', $workflow->next('approved', 'bat_dau'));
+        $this->assertSame('completed', $workflow->next('in_progress', 'du_dieu_kien'));
+        $this->assertSame('accepted', $workflow->next('completed', 'chot_nghiem_thu'));
+        $this->assertSame([], $workflow->actions('accepted'));
+    }
+
+    public function testDeTaiKhongChotNghiemThuKhiChuaDuDieuKien(): void
+    {
+        $this->expectException(ApiException::class);
+
+        $this->deTaiWorkflow()->next('in_progress', 'chot_nghiem_thu');
+    }
+
+    public function testDeTaiDaNghiemThuKhongChotLai(): void
+    {
+        $this->expectException(ApiException::class);
+
+        $this->deTaiWorkflow()->next('accepted', 'chot_nghiem_thu');
     }
 
     public function testBaoCaoDuocNopLaiSauKhiYeuCauBoSung(): void

@@ -47,4 +47,13 @@ class MocThoiGianRepository extends BaseRepository
     {
         return $this->db->table('bao_cao_moc')->where('moc_thoi_gian_id', $mocId)->countAllResults();
     }
+
+    /** So moc bat buoc cua mot lop (dieu kien du nghiem thu) */
+    public function demBatBuoc(int $lopHocPhanId): int
+    {
+        return $this->db->table('moc_thoi_gian')
+            ->where('lop_hoc_phan_id', $lopHocPhanId)
+            ->where('bat_buoc', 1)
+            ->countAllResults();
+    }
 }
