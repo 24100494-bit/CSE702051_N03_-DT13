@@ -39,4 +39,24 @@ class NhatKyHeThongRepository
             ->get()
             ->getResultArray();
     }
+
+    public function findLichSuDeTai(int $deTaiId): array
+    {
+        return $this->db->table('nhat_ky_he_thong')
+            ->like('chi_tiet', "de tai ID: {$deTaiId}")
+            ->orLike('chi_tiet', "De tai ID: {$deTaiId}")
+            ->orderBy('id', 'ASC')
+            ->get()
+            ->getResultArray();
+    }
+
+    public function findLichSuBaoCao(int $baoCaoId): array
+    {
+        return $this->db->table('nhat_ky_he_thong')
+            ->like('chi_tiet', "bao cao ID: {$baoCaoId}")
+            ->orLike('chi_tiet', "Bao cao ID: {$baoCaoId}")
+            ->orderBy('id', 'ASC')
+            ->get()
+            ->getResultArray();
+    }
 }
