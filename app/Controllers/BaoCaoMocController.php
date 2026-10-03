@@ -51,6 +51,16 @@ class BaoCaoMocController extends BaseController
         }
     }
 
+    /** GET /api/v1/bao-cao-moc/{id}/lich-su - YCCN-12 */
+    public function lichSu($id = null)
+    {
+        try {
+            return $this->respondSuccess($this->service()->lichSu($this->idHopLe($id), $this->nguoiDungHienTai()));
+        } catch (ApiException $e) {
+            return $this->respondError($e);
+        }
+    }
+
     /** GET /api/v1/bao-cao-moc/{id} */
     public function show($id = null)
     {

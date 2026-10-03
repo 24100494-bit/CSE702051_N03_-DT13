@@ -40,6 +40,8 @@ class BaoCaoMocService
     /** Trang thai de tai cho phep nop bao cao (de tai da duoc duyet) */
     private const DE_TAI_DUOC_NOP = ['approved', 'in_progress'];
 
+    private TrangThaiWorkflow $workflow;
+
     public function __construct(
         protected BaoCaoMocRepository $repo,
         protected DeTaiRepository $deTaiRepo,
@@ -49,6 +51,7 @@ class BaoCaoMocService
         protected ThongBaoRepository $thongBaoRepo,
         protected string $thuMucLuu
     ) {
+        $this->workflow = new TrangThaiWorkflow(self::CHUYEN_TRANG_THAI);
     }
 
     /** UC03 - nop bao cao lan dau cho mot moc */
@@ -95,6 +98,51 @@ class BaoCaoMocService
         $this->kiemQuyenXem($this->deTaiRepo->findById((int) $baoCao['de_tai_id']), $currentUser);
 
         return $this->anDuongDan($baoCao);
+    }
+
+    /** YCCN-12 - lich su trang thai cua mot ban bao cao. */
+    public function lichSu(int $baoCaoId, array $currentUser): array
+    {
+        $baoCao = $this->repo->findById($baoCaoId);
+        if (!$baoCao) {
+            throw new NotFoundException('Khong tim thay bao cao');
+        }
+
+        $deTai = $this->deTaiRepo->findById((int) $baoCao['de_tai_id']);
+        if (!$deTai) {
+            throw new NotFoundException('Khong tim thay de tai');
+        }
+
+        $this->kiemQuyenXem($deTai, $currentUser);
+        $lichSu = $this->nhatKyRepo->findLichSuBaoCao($baoCaoId);
+        $trangThaiDau = null;
+        $ketQua = [];
+
+        foreach ($lichSu as $suKien) {
+            $hanhDong = $suKien['hanh_dong'];
+            $trangThaiMoi = match ($hanhDong) {
+                'SUBMIT_REPORT', 'RESUBMIT_REPORT' => 'pending',
+                'APPROVE_REPORT' => 'approved',
+                'REQUEST_REVISION' => 'revision_requested',
+                default => $trangThaiDau,
+            };
+
+            $ketQua[] = [
+                'hanh_dong' => $hanhDong,
+                'tu_trang_thai' => $trangThaiDau,
+                'den_trang_thai' => $trangThaiMoi,
+                'nguoi_dung_id' => $suKien['nguoi_dung_id'],
+                'thoi_gian' => $suKien['created_at'],
+                'chi_tiet' => $suKien['chi_tiet'],
+            ];
+            $trangThaiDau = $trangThaiMoi;
+        }
+
+        return [
+            'bao_cao_id' => (int) $baoCao['id'],
+            'trang_thai_hien_tai' => $baoCao['trang_thai'],
+            'lich_su' => $ketQua,
+        ];
     }
 
     /** Cac ban nop cua mot de tai (moi nhat truoc), cung quyen xem voi xem() */
@@ -177,7 +225,12 @@ class BaoCaoMocService
                 'ten_tep_goc'      => $tenGoc,
                 'trang_thai'       => 'pending',
             ]);
-            $this->nhatKyRepo->ghiNhan($userId, $hanhDong, 'Nop tep bao cao cho Moc ' . $mocId . ' (de tai ID: ' . $deTai['id'] . ')', $currentUser['ip'] ?? null);
+            $this->nhatKyRepo->ghiNhan(
+                $userId,
+                $hanhDong,
+                'Nop tep bao cao ID: ' . $id . ' cho Moc ' . $mocId . ' (de tai ID: ' . $deTai['id'] . ')',
+                $currentUser['ip'] ?? null
+            );
             if (!empty($deTai['gvhd_id'])) {
                 $this->thongBaoRepo->create([
                     'nguoi_dung_id' => (int) $deTai['gvhd_id'],
@@ -296,14 +349,7 @@ class BaoCaoMocService
 
     private function trangThaiSau(array $baoCao, string $hanhDong): string
     {
-        $hienTai = $baoCao['trang_thai'];
-        $cho     = self::CHUYEN_TRANG_THAI[$hienTai] ?? [];
-
-        if (!isset($cho[$hanhDong])) {
-            throw new ApiException(422, 'INVALID_TRANSITION', 'Khong the ' . $hanhDong . ' bao cao o trang thai ' . $hienTai);
-        }
-
-        return $cho[$hanhDong];
+        return (string) $this->workflow->next((string) $baoCao['trang_thai'], $hanhDong);
     }
 
     /** Khong tra duong dan luu tep noi bo cho client */
