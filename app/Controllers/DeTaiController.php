@@ -32,6 +32,16 @@ class DeTaiController extends BaseController
         }
     }
 
+    /** GET /api/v1/de-tai/{id}/lich-su - YCCN-12 */
+    public function lichSu($id = null)
+    {
+        try {
+            return $this->respondSuccess($this->service()->lichSu($this->idHopLe($id), $this->nguoiDungHienTai()));
+        } catch (ApiException $e) {
+            return $this->respondError($e);
+        }
+    }
+
     /** GET /api/v1/de-tai?page=&size=&trang_thai= */
     public function index()
     {

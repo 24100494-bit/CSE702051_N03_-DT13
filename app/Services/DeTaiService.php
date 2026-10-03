@@ -38,6 +38,7 @@ class DeTaiService
     protected ?ThanhVienNhomRepository $thanhVienRepo;
     protected ?NhatKyHeThongRepository $nhatKyRepo;
     protected ?ThongBaoRepository $thongBaoRepo;
+    protected TrangThaiWorkflow $workflow;
 
     public function __construct(
         DeTaiRepository $repo,
@@ -49,6 +50,7 @@ class DeTaiService
         $this->thanhVienRepo = $thanhVienRepo;
         $this->nhatKyRepo    = $nhatKyRepo;
         $this->thongBaoRepo  = $thongBaoRepo;
+        $this->workflow      = new TrangThaiWorkflow(self::CHUYEN_TRANG_THAI);
     }
 
     /**
@@ -144,6 +146,41 @@ class DeTaiService
         }
 
         return $this->repo->findById($id);
+    }
+
+    /** YCCN-12 - lich su chuyen trang thai cua de tai. */
+    public function lichSu(int $id, array $currentUser): array
+    {
+        $deTai = $this->getForUser($id, $currentUser);
+        $lichSu = $this->nhatKyRepo->findLichSuDeTai($id);
+        $trangThaiDau = 'pending';
+        $ketQua = [];
+
+        foreach ($lichSu as $suKien) {
+            $hanhDong = $suKien['hanh_dong'];
+            $trangThaiMoi = match ($hanhDong) {
+                'PROPOSE_TOPIC' => 'pending',
+                'APPROVE_TOPIC' => 'approved',
+                'REJECT_TOPIC' => 'rejected',
+                default => $trangThaiDau,
+            };
+
+            $ketQua[] = [
+                'hanh_dong' => $hanhDong,
+                'tu_trang_thai' => $trangThaiDau,
+                'den_trang_thai' => $trangThaiMoi,
+                'nguoi_dung_id' => $suKien['nguoi_dung_id'],
+                'thoi_gian' => $suKien['created_at'],
+                'chi_tiet' => $suKien['chi_tiet'],
+            ];
+            $trangThaiDau = $trangThaiMoi;
+        }
+
+        return [
+            'de_tai_id' => (int) $deTai['id'],
+            'trang_thai_hien_tai' => $deTai['trang_thai'],
+            'lich_su' => $ketQua,
+        ];
     }
 
     /** Sua ten, mo ta khi de tai con pending hoac bi tu choi; de tai bi tu choi sau khi sua quay ve pending (UC02 luong thay the) */
@@ -254,17 +291,10 @@ class DeTaiService
         return $deTai;
     }
 
-    /** Tra ve trang thai moi theo bang chuyen trang thai, hoac 422 neu hanh dong khong hop le */
+    /** Tra ve trang thai moi theo may trang thai T3, hoac 422 neu hanh dong khong hop le. */
     private function trangThaiSau(array $deTai, string $hanhDong): ?string
     {
-        $hienTai = $deTai['trang_thai'];
-        $cho     = self::CHUYEN_TRANG_THAI[$hienTai] ?? [];
-
-        if (!array_key_exists($hanhDong, $cho)) {
-            throw new ApiException(422, 'INVALID_TRANSITION', 'Khong the ' . $hanhDong . ' de tai o trang thai ' . $hienTai);
-        }
-
-        return $cho[$hanhDong];
+        return $this->workflow->next((string) $deTai['trang_thai'], $hanhDong);
     }
 
     private function coVaiTro(array $currentUser, string $vaiTro): bool
