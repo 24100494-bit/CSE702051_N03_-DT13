@@ -82,7 +82,7 @@ class BaoCaoMocService
         if ((int) $moiNhat['id'] !== $baoCaoId) {
             throw new ApiException(422, 'INVALID_TRANSITION', 'Chi duoc nop lai tu ban nop moi nhat cua moc');
         }
-        $this->trangThaiSau($baoCao, 'nop_lai');
+        $trangThaiMoi = $this->trangThaiSau($baoCao, 'nop_lai');
         $this->kiemTraMoc($deTai, $mocId);
 
         return $this->luuBanNop($deTai, $mocId, $tep, $currentUser, 'RESUBMIT_REPORT', $baoCaoId);
@@ -223,7 +223,7 @@ class BaoCaoMocService
                 'moc_thoi_gian_id' => $mocId,
                 'duong_dan_tep'    => 'bao_cao/' . $tenLuu,
                 'ten_tep_goc'      => $tenGoc,
-                'trang_thai'       => 'pending',
+                'trang_thai'       => $trangThaiMoi,
             ]);
             $this->nhatKyRepo->ghiNhan(
                 $userId,
