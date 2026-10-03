@@ -30,6 +30,7 @@ $routes->group('api/v1', static function ($routes) {
 
     $routes->get('de-tai', 'DeTaiController::index', ['filter' => 'quyen:F2.9']);
     $routes->get('de-tai/(:num)', 'DeTaiController::show/$1', ['filter' => 'quyen:F2.3']);
+    $routes->get('de-tai/(:num)/lich-su', 'DeTaiController::lichSu/$1', ['filter' => 'quyen:F3.10']);
 
     // Luong 1: de xuat va duyet de tai (UC01, UC02)
     $routes->post('de-tai', 'DeTaiController::create', ['filter' => 'quyen:F2.2']);
@@ -42,6 +43,7 @@ $routes->group('api/v1', static function ($routes) {
     $routes->get('de-tai/(:num)/bao-cao-moc', 'BaoCaoMocController::index/$1', ['filter' => 'quyen:F3.6']);
     $routes->post('de-tai/(:num)/bao-cao-moc', 'BaoCaoMocController::create/$1', ['filter' => 'quyen:F3.4']);
     $routes->get('bao-cao-moc/(:num)', 'BaoCaoMocController::show/$1', ['filter' => 'quyen:F3.6']);
+    $routes->get('bao-cao-moc/(:num)/lich-su', 'BaoCaoMocController::lichSu/$1', ['filter' => 'quyen:F3.10']);
     $routes->post('bao-cao-moc/(:num)', 'BaoCaoMocController::nopLai/$1', ['filter' => 'quyen:F3.5']);
     $routes->post('bao-cao-moc/(:num)/duyet', 'BaoCaoMocController::duyet/$1', ['filter' => 'quyen:F3.7']);
     $routes->post('bao-cao-moc/(:num)/yeu-cau-bo-sung', 'BaoCaoMocController::yeuCauBoSung/$1', ['filter' => 'quyen:F3.8']);
