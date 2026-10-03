@@ -44,6 +44,7 @@ class PhanQuyen extends BaseConfig
         'F4.2'  => ['hoi_dong'],                                     // Xem chi tiet ho so nghiem thu
         'F4.3'  => ['hoi_dong'],                                     // Cham diem nghiem thu
         'F4.4'  => ['sinh_vien', 'gvhd', 'thu_ky_khoa', 'hoi_dong'], // Xem diem nghiem thu da cham
+        'F4.5'  => ['thu_ky_khoa'],                                  // Chot ket qua nghiem thu (completed -> accepted)
         'F5.1'  => ['gvhd', 'thu_ky_khoa'],                          // Thong ke tien do toan khoa
         'F5.2'  => ['thu_ky_khoa'],                                  // Xuat bao cao thong ke CSV/Excel
         'F5.3'  => ['thu_ky_khoa'],                                  // Tra cuu nhat ky he thong
