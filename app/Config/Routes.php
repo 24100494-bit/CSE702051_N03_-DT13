@@ -48,6 +48,13 @@ $routes->group('api/v1', static function ($routes) {
     $routes->post('bao-cao-moc/(:num)/duyet', 'BaoCaoMocController::duyet/$1', ['filter' => 'quyen:F3.7']);
     $routes->post('bao-cao-moc/(:num)/yeu-cau-bo-sung', 'BaoCaoMocController::yeuCauBoSung/$1', ['filter' => 'quyen:F3.8']);
 
+    // Luong 3: cham diem nghiem thu (UC06)
+    $routes->get('nghiem-thu/ho-so', 'NghiemThuController::index', ['filter' => 'quyen:F4.1']);
+    $routes->get('de-tai/(:num)/ho-so-nghiem-thu', 'NghiemThuController::hoSo/$1', ['filter' => 'quyen:F4.2']);
+    $routes->post('de-tai/(:num)/diem-nghiem-thu', 'NghiemThuController::cham/$1', ['filter' => 'quyen:F4.3']);
+    $routes->get('de-tai/(:num)/diem-nghiem-thu', 'NghiemThuController::xemDiem/$1', ['filter' => 'quyen:F4.4']);
+    $routes->post('de-tai/(:num)/chot-nghiem-thu', 'NghiemThuController::chot/$1', ['filter' => 'quyen:F4.5']);
+
     // Nhom sinh vien: ma nhom {id} la ma de tai cua nhom
     $routes->get('nhom-sinh-vien/(:num)', 'NhomSinhVienController::show/$1', ['filter' => 'quyen:F2.10']);
     $routes->patch('nhom-sinh-vien/(:num)/gvhd', 'NhomSinhVienController::phanCongGvhd/$1', ['filter' => 'quyen:F2.8']);
