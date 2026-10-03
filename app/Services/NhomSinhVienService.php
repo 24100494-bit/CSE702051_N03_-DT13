@@ -23,6 +23,9 @@ class NhomSinhVienService
     /** Trang thai de tai con duoc doi thanh vien nhom */
     private const DE_TAI_DOI_THANH_VIEN = ['pending', 'rejected', 'approved', 'in_progress'];
 
+    /** So thanh vien toi da moi nhom, khop trigger trg_tvn_toi_da o CSDL (cap_nhat_csdl_buoi6.sql) */
+    private const SO_THANH_VIEN_TOI_DA = 5;
+
     public function __construct(
         protected DeTaiRepository $deTaiRepo,
         protected ThanhVienNhomRepository $thanhVienRepo,
@@ -125,6 +128,10 @@ class NhomSinhVienService
             }
             if ($this->deTaiRepo->coDeTaiDangHoatDong($sinhVienId)) {
                 throw new ApiException(422, 'DA_CO_DE_TAI', 'Sinh vien dang thuoc nhom cua de tai khac');
+            }
+            // Dong de tai da khoa o tren nen hai yeu cau them dong thoi khong cung vuot gioi han
+            if (count($this->thanhVienRepo->findByDeTai($deTaiId)) >= self::SO_THANH_VIEN_TOI_DA) {
+                throw new ApiException(422, 'NHOM_DA_DU', 'Nhom da du ' . self::SO_THANH_VIEN_TOI_DA . ' thanh vien');
             }
 
             $this->thanhVienRepo->themThanhVien($deTaiId, $sinhVienId, 'member');

@@ -26,13 +26,20 @@ class DeTaiService
      * Bang chuyen trang thai (khung T3): trang thai hien tai -> hanh dong -> trang thai moi.
      * Hanh dong khong co trong bang thi bi tu choi voi 422.
      */
-    private const CHUYEN_TRANG_THAI = [
+    public const CHUYEN_TRANG_THAI = [
         'pending'     => ['duyet' => 'approved', 'tu_choi' => 'rejected', 'sua' => 'pending', 'xoa' => null],
         'rejected'    => ['sua' => 'pending', 'xoa' => null],
-        'approved'    => [],
-        'in_progress' => [],
-        'completed'   => [],
+        // Luong 2: nhom nop ban bao cao dau tien thi de tai bat dau thuc hien
+        'approved'    => ['bat_dau' => 'in_progress'],
+        // Luong 2 -> 3: moi moc bat buoc cua lop deu co ban nop duoc duyet thi du dieu kien nghiem thu
+        'in_progress' => ['du_dieu_kien' => 'completed'],
+        // Luong 3 (UC06): thu ky khoa chot ket qua sau khi hoi dong da cham
+        'completed'   => ['chot_nghiem_thu' => 'accepted'],
+        'accepted'    => [],
     ];
+
+    /** Trang thai hoi dong duoc xem: du dieu kien nghiem thu va da nghiem thu */
+    public const TRANG_THAI_HOI_DONG = ['completed', 'accepted'];
 
     protected DeTaiRepository $repo;
     protected ?ThanhVienNhomRepository $thanhVienRepo;
@@ -78,8 +85,8 @@ class DeTaiService
         // Thu ky khoa: duoc xem moi de tai
         $isThuKy = $this->coVaiTro($currentUser, 'THU_KY_KHOA');
 
-        // Hoi dong: chi de tai da hoan thanh (du dieu kien nghiem thu)
-        $isHoiDong = $this->coVaiTro($currentUser, 'HOI_DONG') && $deTai['trang_thai'] === 'completed';
+        // Hoi dong: chi de tai du dieu kien nghiem thu hoac da nghiem thu
+        $isHoiDong = $this->coVaiTro($currentUser, 'HOI_DONG') && in_array($deTai['trang_thai'], self::TRANG_THAI_HOI_DONG, true);
 
         // Kiem quyen tren dung doi tuong (chong IDOR)
         if (!$isThanhVien && !$isGvhdPhuTrach && !$isThuKy && !$isHoiDong) {
@@ -103,7 +110,7 @@ class DeTaiService
             return $this->repo->findTheoPhamVi($page, $size, $trangThai, $userId);
         }
         if ($this->coVaiTro($currentUser, 'HOI_DONG')) {
-            return $this->repo->findTheoPhamVi($page, $size, $trangThai, null, null, ['completed']);
+            return $this->repo->findTheoPhamVi($page, $size, $trangThai, null, null, self::TRANG_THAI_HOI_DONG);
         }
 
         return ['items' => [], 'total' => 0, 'page' => $page, 'size' => $size];
@@ -153,15 +160,19 @@ class DeTaiService
     {
         $deTai = $this->getForUser($id, $currentUser);
         $lichSu = $this->nhatKyRepo->findLichSuDeTai($id);
-        $trangThaiDau = 'pending';
+        // Truoc lan de xuat chua co trang thai; de tai nap tu du lieu mau khong co dong de xuat thi tu_trang_thai = null
+        $trangThaiDau = null;
         $ketQua = [];
 
         foreach ($lichSu as $suKien) {
             $hanhDong = $suKien['hanh_dong'];
             $trangThaiMoi = match ($hanhDong) {
-                'PROPOSE_TOPIC' => 'pending',
+                'PROPOSE_TOPIC', 'RESUBMIT_TOPIC' => 'pending',
                 'APPROVE_TOPIC' => 'approved',
                 'REJECT_TOPIC' => 'rejected',
+                'START_TOPIC' => 'in_progress',
+                'TOPIC_READY' => 'completed',
+                'ACCEPT_TOPIC' => 'accepted',
                 default => $trangThaiDau,
             };
 
@@ -194,7 +205,18 @@ class DeTaiService
             throw new ValidationException([['field' => 'ten_de_tai', 'issue' => 'Trung ten de tai da co trong lop, vui long doi ten']]);
         }
 
-        $this->repo->capNhat($id, array_merge($input, ['trang_thai' => $moi]));
+        $this->repo->transBegin();
+        try {
+            $this->repo->capNhat($id, array_merge($input, ['trang_thai' => $moi]));
+            // Sua de tai bi tu choi la mot lan chuyen trang thai (rejected -> pending): ghi nhat ky de con lich su
+            if ($deTai['trang_thai'] !== $moi) {
+                $this->nhatKyRepo->ghiNhan((int) $currentUser['id'], 'RESUBMIT_TOPIC', 'Sua va gui lai de tai ID: ' . $id, $currentUser['ip'] ?? null);
+            }
+            $this->repo->transCommit();
+        } catch (Throwable $e) {
+            $this->repo->transRollback();
+            throw $e;
+        }
 
         return $this->repo->findById($id);
     }

@@ -39,4 +39,30 @@ class NhatKyHeThongRepository
             ->get()
             ->getResultArray();
     }
+
+    /** Cac dong nhat ky lam doi trang thai de tai; khop dung ma (ID 1 khong khop 14, 10...) */
+    public function findLichSuDeTai(int $deTaiId): array
+    {
+        return $this->findTheoDoiTuong('de tai ID: ' . $deTaiId, ['PROPOSE_TOPIC', 'APPROVE_TOPIC', 'REJECT_TOPIC', 'RESUBMIT_TOPIC', 'START_TOPIC', 'TOPIC_READY', 'ACCEPT_TOPIC']);
+    }
+
+    /** Cac dong nhat ky lam doi trang thai mot ban bao cao; khop dung ma */
+    public function findLichSuBaoCao(int $baoCaoId): array
+    {
+        return $this->findTheoDoiTuong('bao cao ID: ' . $baoCaoId, ['SUBMIT_REPORT', 'RESUBMIT_REPORT', 'APPROVE_REPORT', 'REQUEST_REVISION']);
+    }
+
+    /**
+     * Loc theo hanh dong va chuoi "<doi tuong> ID: <ma>" theo sau khong phai chu so.
+     * Ma la so nguyen do Service truyen vao nen an toan khi dat vao mau REGEXP.
+     */
+    private function findTheoDoiTuong(string $mau, array $hanhDong): array
+    {
+        return $this->db->table('nhat_ky_he_thong')
+            ->whereIn('hanh_dong', $hanhDong)
+            ->where('chi_tiet REGEXP ' . $this->db->escape($mau . '([^0-9]|$)'), null, false)
+            ->orderBy('id', 'ASC')
+            ->get()
+            ->getResultArray();
+    }
 }
