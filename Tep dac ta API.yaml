@@ -725,10 +725,13 @@ paths:
     get:
       tags: [Nghiệm thu]
       summary: Danh sách hồ sơ đủ điều kiện nghiệm thu (YCCN-19)
-      description: Chỉ vai trò HOI_DONG; chỉ trả đề tài đã hoàn thành các mốc bắt buộc.
+      description: >
+        Chỉ vai trò HOI_DONG; chỉ trả đề tài completed (đủ điều kiện) hoặc accepted (đã nghiệm thu),
+        mỗi dòng kèm so_luot_cham, diem_trung_binh và toi_da_cham (người gọi đã chấm chưa).
       parameters:
         - $ref: '#/components/parameters/Page'
         - $ref: '#/components/parameters/Size'
+        - { name: trang_thai, in: query, schema: { type: string, enum: [completed, accepted] } }
       responses:
         '200': { $ref: '#/components/responses/ThanhCong' }
         '403': { $ref: '#/components/responses/KhongDuQuyen' }
@@ -738,23 +741,32 @@ paths:
     get:
       tags: [Nghiệm thu]
       summary: Xem chi tiết hồ sơ đề tài để nghiệm thu (YCCN-19)
+      description: >
+        Đề tài, GVHD, thành viên nhóm, bản nộp mới nhất của từng mốc kèm nhận xét GVHD, các điểm đã chấm.
+        Đề tài chưa completed/accepted trả 403.
       responses:
         '200': { $ref: '#/components/responses/ThanhCong' }
         '403': { $ref: '#/components/responses/KhongDuQuyen' }
+        '404': { $ref: '#/components/responses/KhongTimThay' }
 
   /de-tai/{id}/diem-nghiem-thu:
     parameters: [ { $ref: '#/components/parameters/Id' } ]
     get:
       tags: [Nghiệm thu]
       summary: Xem điểm nghiệm thu đã chấm
-      description: Trả điểm trung bình nếu nhiều thành viên hội đồng cùng chấm.
+      description: >
+        Trả điểm trung bình nếu nhiều thành viên hội đồng cùng chấm. Thư ký khoa và hội đồng xem bất cứ lúc nào;
+        sinh viên trong nhóm và GVHD phụ trách chỉ thấy điểm khi đề tài accepted (cong_bo = true),
+        trước đó chi_tiet rỗng. Người ngoài phạm vi trả 403.
       responses:
         '200': { $ref: '#/components/responses/ThanhCong' }
         '403': { $ref: '#/components/responses/KhongDuQuyen' }
     post:
       tags: [Nghiệm thu]
       summary: Chấm điểm nghiệm thu (YCCN-19, UC06)
-      description: Chỉ vai trò HOI_DONG, đề tài phải đủ điều kiện. Điểm ngoài 0–10 trả 422.
+      description: >
+        Chỉ vai trò HOI_DONG, đề tài phải completed (đủ điều kiện, chưa chốt). Điểm ngoài 0–10 trả 422 DIEM_NGOAI_KHOANG;
+        đề tài chưa đủ điều kiện hoặc đã chốt trả 422 INVALID_TRANSITION; mỗi thành viên chỉ chấm một lần, lần hai trả 409.
       requestBody:
         required: true
         content:
@@ -768,7 +780,23 @@ paths:
       responses:
         '201': { $ref: '#/components/responses/DaTao' }
         '403': { $ref: '#/components/responses/KhongDuQuyen' }
+        '409': { $ref: '#/components/responses/XungDot' }
         '422': { $ref: '#/components/responses/SaiDuLieu' }
+
+  /de-tai/{id}/chot-nghiem-thu:
+    parameters: [ { $ref: '#/components/parameters/Id' } ]
+    post:
+      tags: [Nghiệm thu]
+      summary: Chốt kết quả nghiệm thu (UC06)
+      description: >
+        Chỉ vai trò THU_KY_KHOA. Chuyển đề tài completed → accepted, điểm cuối là trung bình các lượt chấm;
+        thông báo cho nhóm trưởng và GVHD. Chưa có lượt chấm nào trả 422 CHUA_CO_DIEM;
+        đề tài không ở completed trả 422 INVALID_TRANSITION.
+      responses:
+        '200': { $ref: '#/components/responses/ThanhCong' }
+        '403': { $ref: '#/components/responses/KhongDuQuyen' }
+        '404': { $ref: '#/components/responses/KhongTimThay' }
+        '422': { $ref: '#/components/responses/SaiTrangThai' }
 
   /thong-ke/tien-do:
     get:
@@ -888,7 +916,10 @@ components:
       enum: [SINH_VIEN, GVHD, THU_KY_KHOA, HOI_DONG]
     TrangThaiDeTai:
       type: string
-      enum: [pending, approved, rejected, in_progress, completed]
+      description: >
+        completed = đủ điều kiện nghiệm thu (mọi mốc bắt buộc của lớp đã có bản nộp được duyệt);
+        accepted = đã nghiệm thu (thư ký khoa đã chốt điểm).
+      enum: [pending, approved, rejected, in_progress, completed, accepted]
     TrangThaiMoc:
       type: string
       enum: [pending, approved, revision_requested, overdue]

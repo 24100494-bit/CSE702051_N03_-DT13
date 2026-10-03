@@ -37,6 +37,7 @@
     .nhan-approved, .nhan-completed { background: #dcfce7; color: #166534; }
     .nhan-rejected, .nhan-revision_requested, .nhan-overdue { background: #fee2e2; color: #991b1b; }
     .nhan-in_progress { background: #dbeafe; color: #1e40af; }
+    .nhan-accepted { background: #166534; color: #fff; }
     .loi { min-height: 18px; margin: 6px 0; color: #b91c1c; font-size: 14px; }
     .ket-qua { min-height: 18px; margin: 6px 0; color: #166534; font-size: 14px; }
     .chua-doc { font-weight: 600; }
