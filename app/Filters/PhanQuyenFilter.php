@@ -31,6 +31,11 @@ class PhanQuyenFilter implements FilterInterface
 
         foreach ($arguments as $maChucNang) {
             if (array_intersect($nguoiDung['danh_sach_vai_tro'], $bangQuyen[$maChucNang] ?? [])) {
+                // Da doc xong phien: dong de nha khoa tep phien. Neu khong, cac yeu cau cung mot phien
+                // phai xep hang cho nhau va kiem thu truy cap dong thoi khong con dong thoi that.
+                // Cac diem cuoi co ma chuc nang chi doc phien, khong ghi (dang nhap, dang xuat khong qua nhanh nay).
+                session()->close();
+
                 return;
             }
         }

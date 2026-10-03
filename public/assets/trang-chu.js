@@ -11,8 +11,10 @@
 
     const TEN_TRANG_THAI = {
         pending: 'Chờ duyệt', approved: 'Đã duyệt', rejected: 'Bị từ chối', in_progress: 'Đang thực hiện',
-        completed: 'Hoàn thành', revision_requested: 'Cần bổ sung', overdue: 'Quá hạn',
+        completed: 'Đủ điều kiện nghiệm thu', accepted: 'Đã nghiệm thu', revision_requested: 'Cần bổ sung', overdue: 'Quá hạn',
     };
+    const CO_BAO_CAO = ['approved', 'in_progress', 'completed', 'accepted'];
+    const NGHIEM_THU = ['completed', 'accepted'];
     const TEN_VAI_TRO = { SINH_VIEN: 'Sinh viên', GVHD: 'GVHD', THU_KY_KHOA: 'Thư ký khoa', HOI_DONG: 'Hội đồng' };
 
     // ---------- Tien ich ----------
@@ -170,6 +172,22 @@
         }
     }
 
+    // ---------- Dung chung: diem nghiem thu (F4.4) ----------
+    async function hienDiem(vung, deTai) {
+        const kq = await goi('GET', '/de-tai/' + deTai.id + '/diem-nghiem-thu');
+        vung.replaceChildren();
+        if (!kq.ok) { vung.append(tao('p', { class: 'loi', text: kq.loi })); return; }
+        const d = kq.data;
+        if (!d.chi_tiet.length) {
+            vung.append(tao('p', { class: 'phu', text: d.so_luot_cham === null ? 'Hội đồng đang chấm, điểm công bố sau khi thư ký khoa chốt.' : 'Chưa có lượt chấm.' }));
+            return;
+        }
+        vung.append(tao('div', { class: 'muc-con' },
+            tao('p', {}, tao('strong', { text: 'Điểm trung bình: ' + (d.diem_trung_binh ?? '—') }),
+                ' · ' + d.so_luot_cham + ' lượt chấm' + (d.cong_bo ? '' : ' (chưa chốt)')),
+            tao('ul', {}, d.chi_tiet.map((c) => tao('li', { text: c.nguoi_cham + ': ' + c.diem + (c.nhan_xet ? ' – ' + c.nhan_xet : '') })))));
+    }
+
     // ---------- Sinh vien ----------
     async function khoiSinhVien() {
         const the = theMoi('Đề tài của tôi');
@@ -206,10 +224,14 @@
         const oLoi = oThongBao();
         const vungNhom = tao('div');
         const vungBaoCao = tao('div');
+        const vungDiem = tao('div');
         const hang = tao('div', { class: 'hang' },
             tao('button', { type: 'button', class: 'nut-phu', text: 'Xem nhóm', onclick: () => hienNhom(vungNhom, dt, laNhomTruong) }));
-        if (['approved', 'in_progress', 'completed'].includes(dt.trang_thai)) {
+        if (CO_BAO_CAO.includes(dt.trang_thai)) {
             hang.append(tao('button', { type: 'button', class: 'nut-phu', text: 'Báo cáo theo mốc', onclick: () => hienBaoCao(vungBaoCao, dt, laNhomTruong, false) }));
+        }
+        if (NGHIEM_THU.includes(dt.trang_thai)) {
+            hang.append(tao('button', { type: 'button', class: 'nut-phu', text: 'Điểm nghiệm thu', onclick: () => hienDiem(vungDiem, dt) }));
         }
         if (laNhomTruong && ['pending', 'rejected'].includes(dt.trang_thai)) {
             hang.append(tao('button', {
@@ -229,7 +251,7 @@
             tao('div', { class: 'hang' }, tao('h3', { text: dt.ten_de_tai }), nhanTrangThai(dt.trang_thai)),
             tao('p', { class: 'phu', text: dt.mo_ta_pham_vi || '' }),
             dt.trang_thai === 'pending' && !dt.gvhd_id ? tao('p', { class: 'phu', text: 'Đang chờ thư ký khoa phân công GVHD.' }) : null,
-            suaForm, hang, oLoi, vungNhom, vungBaoCao);
+            suaForm, hang, oLoi, vungNhom, vungBaoCao, vungDiem);
     }
 
     async function hienNhom(vung, dt, laNhomTruong) {
@@ -265,6 +287,7 @@
             kq.data.items.forEach((dt) => {
                 const oLoi = oThongBao();
                 const vungBaoCao = tao('div');
+                const vungDiem = tao('div');
                 const hang = tao('div', { class: 'hang' });
                 if (dt.trang_thai === 'pending') {
                     const ghiChu = tao('input', { placeholder: 'Nhận xét / lý do từ chối', 'aria-label': 'Nhận xét đề tài ' + dt.id });
@@ -272,12 +295,15 @@
                         tao('button', { type: 'button', text: 'Duyệt', onclick: (e) => thucHien(e.target, oLoi, () => goi('POST', '/de-tai/' + dt.id + '/duyet', { nhan_xet: ghiChu.value }), taiDs) }),
                         tao('button', { type: 'button', class: 'nut-nguy', text: 'Từ chối', onclick: (e) => thucHien(e.target, oLoi, () => goi('POST', '/de-tai/' + dt.id + '/tu-choi', { ly_do: ghiChu.value }), taiDs) }));
                 }
-                if (['approved', 'in_progress', 'completed'].includes(dt.trang_thai)) {
+                if (CO_BAO_CAO.includes(dt.trang_thai)) {
                     hang.append(tao('button', { type: 'button', class: 'nut-phu', text: 'Báo cáo theo mốc', onclick: () => hienBaoCao(vungBaoCao, dt, false, true) }));
+                }
+                if (NGHIEM_THU.includes(dt.trang_thai)) {
+                    hang.append(tao('button', { type: 'button', class: 'nut-phu', text: 'Điểm nghiệm thu', onclick: () => hienDiem(vungDiem, dt) }));
                 }
                 ds.append(tao('div', { class: 'muc' },
                     tao('div', { class: 'hang' }, tao('h3', { text: dt.ten_de_tai }), nhanTrangThai(dt.trang_thai)),
-                    tao('p', { class: 'phu', text: dt.mo_ta_pham_vi || '' }), hang, oLoi, vungBaoCao));
+                    tao('p', { class: 'phu', text: dt.mo_ta_pham_vi || '' }), hang, oLoi, vungBaoCao, vungDiem));
             });
         }
         await taiDs();
@@ -286,6 +312,7 @@
     // ---------- Thu ky khoa ----------
     async function khoiThuKy() {
         await khoiPhanCong();
+        await khoiChotNghiemThu();
         await khoiLopVaMoc();
         await khoiTaiKhoan();
     }
@@ -311,6 +338,31 @@
                     tao('p', { class: 'phu', text: 'GVHD hiện tại: ' + (dt.gvhd_id ? (tenGv[String(dt.gvhd_id)] || 'mã ' + dt.gvhd_id) : 'chưa phân công') }),
                     tao('div', { class: 'hang' }, chon, tao('button', { type: 'button', text: 'Phân công', onclick: (e) => thucHien(e.target, oLoi, () => goi('PATCH', '/nhom-sinh-vien/' + dt.id + '/gvhd', { gvhd_id: Number(chon.value) }), taiDs) })),
                     oLoi));
+            });
+        }
+        await taiDs();
+    }
+
+    async function khoiChotNghiemThu() {
+        const the = theMoi('Chốt kết quả nghiệm thu');
+        const ds = tao('div');
+        the.append(ds);
+        async function taiDs() {
+            const kq = await goi('GET', '/de-tai?trang_thai=completed&size=100');
+            ds.replaceChildren();
+            if (!kq.ok) { ds.append(tao('p', { class: 'loi', text: kq.loi })); return; }
+            if (!kq.data.items.length) ds.append(tao('p', { class: 'phu', text: 'Không có đề tài nào chờ chốt nghiệm thu.' }));
+            kq.data.items.forEach((dt) => {
+                const oLoi = oThongBao();
+                const vungDiem = tao('div');
+                ds.append(tao('div', { class: 'muc' },
+                    tao('div', { class: 'hang' }, tao('h3', { text: dt.ten_de_tai }), nhanTrangThai(dt.trang_thai)),
+                    vungDiem,
+                    tao('div', { class: 'hang' }, tao('button', {
+                        type: 'button', text: 'Chốt nghiệm thu',
+                        onclick: (e) => { if (window.confirm('Chốt kết quả nghiệm thu "' + dt.ten_de_tai + '"? Sau khi chốt hội đồng không chấm thêm được.')) thucHien(e.target, oLoi, () => goi('POST', '/de-tai/' + dt.id + '/chot-nghiem-thu'), taiDs); },
+                    })), oLoi));
+                hienDiem(vungDiem, dt);
             });
         }
         await taiDs();
@@ -429,12 +481,60 @@
 
     // ---------- Hoi dong ----------
     async function khoiHoiDong() {
-        const the = theMoi('Đề tài đủ điều kiện nghiệm thu');
-        const kq = await goi('GET', '/de-tai?size=100');
-        if (!kq.ok) { the.append(tao('p', { class: 'loi', text: kq.loi })); return; }
-        if (!kq.data.items.length) the.append(tao('p', { class: 'phu', text: 'Chưa có đề tài hoàn thành.' }));
-        kq.data.items.forEach((dt) => the.append(tao('div', { class: 'muc' },
-            tao('div', { class: 'hang' }, tao('h3', { text: dt.ten_de_tai }), nhanTrangThai(dt.trang_thai)), tao('p', { class: 'phu', text: dt.mo_ta_pham_vi || '' }))));
+        const the = theMoi('Hồ sơ nghiệm thu');
+        const locTt = tao('select', { 'aria-label': 'Lọc trạng thái hồ sơ', onchange: () => taiDs() },
+            tao('option', { value: 'completed', text: 'Chờ chấm' }), tao('option', { value: 'accepted', text: 'Đã nghiệm thu' }), tao('option', { value: '', text: 'Tất cả' }));
+        const ds = tao('div');
+        the.append(tao('div', { class: 'hang' }, locTt), ds);
+        async function taiDs() {
+            const kq = await goi('GET', '/nghiem-thu/ho-so?size=100' + (locTt.value ? '&trang_thai=' + locTt.value : ''));
+            ds.replaceChildren();
+            if (!kq.ok) { ds.append(tao('p', { class: 'loi', text: kq.loi })); return; }
+            if (!kq.data.items.length) ds.append(tao('p', { class: 'phu', text: 'Không có hồ sơ nào.' }));
+            kq.data.items.forEach((dt) => {
+                const vungHoSo = tao('div');
+                ds.append(tao('div', { class: 'muc' },
+                    tao('div', { class: 'hang' }, tao('h3', { text: dt.ten_de_tai }), nhanTrangThai(dt.trang_thai)),
+                    tao('p', { class: 'phu', text: (dt.so_luot_cham ? 'Điểm TB ' + dt.diem_trung_binh + ' · ' + dt.so_luot_cham + ' lượt chấm' : 'Chưa có lượt chấm') + (dt.toi_da_cham ? ' · bạn đã chấm' : '') }),
+                    tao('div', { class: 'hang' }, tao('button', { type: 'button', class: 'nut-phu', text: 'Mở hồ sơ', onclick: () => hienHoSo(vungHoSo, dt.id, taiDs) })),
+                    vungHoSo));
+            });
+        }
+        await taiDs();
+    }
+
+    async function hienHoSo(vung, deTaiId, taiDs) {
+        const kq = await goi('GET', '/de-tai/' + deTaiId + '/ho-so-nghiem-thu');
+        vung.replaceChildren();
+        if (!kq.ok) { vung.append(tao('p', { class: 'loi', text: kq.loi })); return; }
+        const h = kq.data;
+        const oLoi = oThongBao();
+        let formCham = null;
+        if (h.de_tai.trang_thai === 'completed' && !h.toi_da_cham) {
+            const diem = tao('input', { type: 'number', min: 0, max: 10, step: 0.25, required: true, 'aria-label': 'Điểm (0–10)' });
+            const nhanXet = tao('textarea', { 'aria-label': 'Nhận xét' });
+            formCham = tao('div', { class: 'luoi-form' }, tao('label', {}, 'Điểm (0–10)', diem), tao('label', {}, 'Nhận xét', nhanXet),
+                tao('button', {
+                    type: 'button', text: 'Gửi điểm',
+                    onclick: (e) => thucHien(e.target, oLoi, () => goi('POST', '/de-tai/' + deTaiId + '/diem-nghiem-thu', { diem: diem.value, nhan_xet: nhanXet.value }),
+                        () => hienHoSo(vung, deTaiId, taiDs)),
+                }));
+        }
+        vung.append(tao('div', { class: 'muc-con' },
+            tao('p', { class: 'phu', text: h.de_tai.mo_ta_pham_vi || '' }),
+            tao('p', { text: 'GVHD: ' + (h.gvhd ? h.gvhd.ho_ten + ' (' + h.gvhd.email + ')' : 'chưa phân công') }),
+            tao('p', { text: 'Nhóm: ' + h.thanh_vien.map((tv) => tv.ho_ten + (tv.vai_tro_nhom === 'leader' ? ' (nhóm trưởng)' : '')).join(', ') }),
+            tao('h3', { text: 'Báo cáo theo mốc' }),
+            tao('ul', {}, h.bao_cao_moc.map((m) => tao('li', {},
+                tao('strong', { text: m.ten_moc + (Number(m.bat_buoc) ? '' : ' (tự chọn)') + ': ' }),
+                m.ban_nop_moi_nhat
+                    ? [m.ban_nop_moi_nhat.ten_tep_goc + ' · ', nhanTrangThai(m.ban_nop_moi_nhat.trang_thai),
+                        m.ban_nop_moi_nhat.nhan_xet_gv ? ' · Nhận xét GVHD: ' + m.ban_nop_moi_nhat.nhan_xet_gv : '']
+                    : 'chưa nộp'))),
+            tao('h3', { text: 'Điểm đã chấm' + (h.so_luot_cham ? ' – TB ' + h.diem_trung_binh : '') }),
+            h.diem.length ? tao('ul', {}, h.diem.map((c) => tao('li', { text: c.nguoi_cham + ': ' + c.diem + (c.nhan_xet ? ' – ' + c.nhan_xet : '') }))) : tao('p', { class: 'phu', text: 'Chưa có lượt chấm.' }),
+            h.toi_da_cham ? tao('p', { class: 'phu', text: 'Bạn đã chấm đề tài này.' }) : null,
+            formCham, oLoi));
     }
 
     // ---------- Ho so ca nhan, dang xuat ----------
