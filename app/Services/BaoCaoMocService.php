@@ -42,6 +42,9 @@ class BaoCaoMocService
 
     private TrangThaiWorkflow $workflow;
 
+    /** May trang thai de tai, dung de chuyen approved -> in_progress -> completed tu luong bao cao */
+    private TrangThaiWorkflow $workflowDeTai;
+
     public function __construct(
         protected BaoCaoMocRepository $repo,
         protected DeTaiRepository $deTaiRepo,
@@ -52,6 +55,7 @@ class BaoCaoMocService
         protected string $thuMucLuu
     ) {
         $this->workflow = new TrangThaiWorkflow(self::CHUYEN_TRANG_THAI);
+        $this->workflowDeTai = new TrangThaiWorkflow(DeTaiService::CHUYEN_TRANG_THAI);
     }
 
     /** UC03 - nop bao cao lan dau cho mot moc */
@@ -203,7 +207,7 @@ class BaoCaoMocService
 
         $this->repo->transBegin();
         try {
-            $this->deTaiRepo->findByIdForUpdate((int) $deTai['id']);
+            $deTaiKhoa = $this->deTaiRepo->findByIdForUpdate((int) $deTai['id']);
             $moiNhat = $this->repo->findMoiNhat((int) $deTai['id'], $mocId);
 
             if ($nopLaiTuId === null && $moiNhat) {
@@ -223,6 +227,7 @@ class BaoCaoMocService
                 'moc_thoi_gian_id' => $mocId,
                 'duong_dan_tep'    => 'bao_cao/' . $tenLuu,
                 'ten_tep_goc'      => $tenGoc,
+                // Ban nop lan dau va ban nop lai deu bat dau o pending (nop lai tao ban ghi moi)
                 'trang_thai'       => 'pending',
             ]);
             $this->nhatKyRepo->ghiNhan(
@@ -231,6 +236,11 @@ class BaoCaoMocService
                 'Nop tep bao cao ID: ' . $id . ' cho Moc ' . $mocId . ' (de tai ID: ' . $deTai['id'] . ')',
                 $currentUser['ip'] ?? null
             );
+            // Ban nop dau tien cua de tai da duyet: de tai bat dau thuc hien (approved -> in_progress)
+            if ($deTaiKhoa['trang_thai'] === 'approved') {
+                $this->deTaiRepo->capNhatTrangThai((int) $deTai['id'], $this->workflowDeTai->next('approved', 'bat_dau'));
+                $this->nhatKyRepo->ghiNhan($userId, 'START_TOPIC', 'Bat dau thuc hien de tai ID: ' . $deTai['id'] . ' (nop bao cao dau tien)', $currentUser['ip'] ?? null);
+            }
             if (!empty($deTai['gvhd_id'])) {
                 $this->thongBaoRepo->create([
                     'nguoi_dung_id' => (int) $deTai['gvhd_id'],
@@ -255,13 +265,16 @@ class BaoCaoMocService
     {
         $userId = (int) $currentUser['id'];
 
+        $banDau = $this->repo->findById($baoCaoId);
+        if (!$banDau) {
+            throw new NotFoundException('Khong tim thay bao cao');
+        }
+
         $this->repo->transBegin();
         try {
+            // Thu tu khoa: de tai roi ban nop (giong luuBanNop) de hai giao dich khong cho nhau vong tron
+            $deTai  = $this->deTaiRepo->findByIdForUpdate((int) $banDau['de_tai_id']);
             $baoCao = $this->repo->findByIdForUpdate($baoCaoId);
-            if (!$baoCao) {
-                throw new NotFoundException('Khong tim thay bao cao');
-            }
-            $deTai = $this->deTaiRepo->findById((int) $baoCao['de_tai_id']);
             if (!$this->coVaiTro($currentUser, 'GVHD') || (int) $deTai['gvhd_id'] !== $userId) {
                 throw new ForbiddenException('Ban khong phu trach de tai cua bao cao nay');
             }
@@ -283,6 +296,16 @@ class BaoCaoMocService
                     . ($nhanXet ? ' Nhận xét: ' . $nhanXet : ''),
             ]);
 
+            if ($laDuyet && $deTai['trang_thai'] === 'in_progress' && $this->duMocBatBuoc($deTai)) {
+                $this->deTaiRepo->capNhatTrangThai((int) $deTai['id'], $this->workflowDeTai->next('in_progress', 'du_dieu_kien'));
+                $this->nhatKyRepo->ghiNhan($userId, 'TOPIC_READY', 'De tai ID: ' . $deTai['id'] . ' du dieu kien nghiem thu (du moc bat buoc da duyet)', $currentUser['ip'] ?? null);
+                $this->thongBaoRepo->create([
+                    'nguoi_dung_id' => (int) $deTai['sinh_vien_de_xuat_id'],
+                    'tieu_de'       => 'Đề tài đủ điều kiện nghiệm thu',
+                    'noi_dung'      => 'Đề tài ID ' . $deTai['id'] . ' đã hoàn thành mọi mốc bắt buộc và chờ hội đồng chấm nghiệm thu.',
+                ]);
+            }
+
             $this->repo->transCommit();
         } catch (Throwable $e) {
             $this->repo->transRollback();
@@ -290,6 +313,16 @@ class BaoCaoMocService
         }
 
         return $this->anDuongDan($this->repo->findById($baoCaoId));
+    }
+
+    /** Moi moc bat buoc cua lop deu da co ban nop duoc duyet (lop phai co it nhat mot moc bat buoc) */
+    private function duMocBatBuoc(array $deTai): bool
+    {
+        $lopId    = (int) $deTai['lop_hoc_phan_id'];
+        $canCo    = $this->mocRepo->demBatBuoc($lopId);
+        $daDuyet  = $this->repo->demMocBatBuocDaDuyet((int) $deTai['id'], $lopId);
+
+        return $canCo > 0 && $daDuyet >= $canCo;
     }
 
     /** De tai ton tai, da duoc duyet, va nguoi goi la nhom truong (nguoi de xuat) */

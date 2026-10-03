@@ -62,4 +62,20 @@ class BaoCaoMocRepository extends BaseRepository
     {
         return $this->update($id, ['trang_thai' => 'revision_requested', 'nhan_xet_gv' => $nhanXet]);
     }
+
+    /** So moc bat buoc cua lop ma de tai da co ban nop duoc duyet (moi moc tinh mot lan) */
+    public function demMocBatBuocDaDuyet(int $deTaiId, int $lopHocPhanId): int
+    {
+        $row = $this->db->table('bao_cao_moc b')
+            ->select('COUNT(DISTINCT b.moc_thoi_gian_id) AS so_moc')
+            ->join('moc_thoi_gian m', 'm.id = b.moc_thoi_gian_id')
+            ->where('b.de_tai_id', $deTaiId)
+            ->where('b.trang_thai', 'approved')
+            ->where('m.bat_buoc', 1)
+            ->where('m.lop_hoc_phan_id', $lopHocPhanId)
+            ->get()
+            ->getRowArray();
+
+        return (int) ($row['so_moc'] ?? 0);
+    }
 }
