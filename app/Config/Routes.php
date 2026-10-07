@@ -73,6 +73,8 @@ $routes->group('api/v1', static function ($routes) {
     $routes->delete('moc-thoi-gian/(:num)', 'MocThoiGianController::delete/$1', ['filter' => 'quyen:F3.1']);
 
     // Thong bao cua toi
+    $routes->get('nhat-ky-he-thong', 'NhatKyHeThongController::index', ['filter' => 'quyen:F5.3']);
+
     $routes->get('thong-bao', 'ThongBaoController::index', ['filter' => 'quyen:F6.1']);
     $routes->patch('thong-bao/(:num)/da-doc', 'ThongBaoController::daDoc/$1', ['filter' => 'quyen:F6.2']);
 });

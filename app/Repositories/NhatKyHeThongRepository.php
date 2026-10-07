@@ -65,4 +65,59 @@ class NhatKyHeThongRepository
             ->get()
             ->getResultArray();
     }
+    /** Tra cuu nhat ky co phan trang va nhieu dieu kien loc. */
+    public function findAllPaginated(
+        int $page,
+        int $size,
+        ?int $nguoiDungId = null,
+        ?string $hanhDong = null,
+        ?string $tuKhoa = null,
+        ?string $tuNgay = null,
+        ?string $denNgay = null
+    ): array
+    {
+        $builder = $this->db->table('nhat_ky_he_thong nk')
+            ->select('nk.*, nd.ho_ten, nd.ten_dang_nhap')
+            ->join('nguoi_dung nd', 'nd.id = nk.nguoi_dung_id', 'left');
+
+        if ($nguoiDungId !== null) {
+            $builder->where('nk.nguoi_dung_id', $nguoiDungId);
+        }
+        if ($hanhDong !== null && trim($hanhDong) !== '') {
+            $builder->where('nk.hanh_dong', trim($hanhDong));
+        }
+        if ($tuKhoa !== null && trim($tuKhoa) !== '') {
+            $tuKhoa = trim($tuKhoa);
+            $builder->groupStart()
+                ->like('nk.hanh_dong', $tuKhoa)
+                ->orLike('nk.chi_tiet', $tuKhoa)
+                ->orLike('nk.dia_chi_ip', $tuKhoa)
+                ->orLike('nd.ho_ten', $tuKhoa)
+                ->orLike('nd.ten_dang_nhap', $tuKhoa)
+                ->groupEnd();
+        }
+        if ($tuNgay !== null && $tuNgay !== '') {
+            $builder->where('nk.created_at >=', $tuNgay . ' 00:00:00');
+        }
+        if ($denNgay !== null && $denNgay !== '') {
+            $builder->where('nk.created_at <=', $denNgay . ' 23:59:59');
+        }
+
+        $total = $builder->countAllResults(false);
+        $rows = $builder
+            ->orderBy('nk.created_at', 'DESC')
+            ->orderBy('nk.id', 'DESC')
+            ->limit($size, ($page - 1) * $size)
+            ->get()
+            ->getResultArray();
+
+        return [
+            'items'       => $rows,
+            'total'       => $total,
+            'page'        => $page,
+            'size'        => $size,
+            'total_pages' => $total > 0 ? (int) ceil($total / $size) : 0,
+        ];
+    }
+
 }
