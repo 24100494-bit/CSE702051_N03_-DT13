@@ -96,24 +96,73 @@ class DeTaiService
         return $deTai;
     }
 
-    public function listForUser(int $page, int $size, ?string $trangThai, array $currentUser): array
+    public function listForUser(
+        int $page,
+        int $size,
+        ?string $trangThai,
+        ?string $tuKhoa,
+        ?int $lopHocPhanId,
+        ?string $sapXep,
+        ?string $huong,
+        array $currentUser
+    ): array
     {
+        if ($page < 1 || $size < 1 || $size > 100) {
+            throw new ValidationException([
+                ['field' => 'page/size', 'issue' => 'Page phai >= 1 va size phai tu 1 den 100'],
+            ]);
+        }
+
+        $trangThai = $trangThai !== null ? trim($trangThai) : null;
+        $tuKhoa = $tuKhoa !== null ? trim($tuKhoa) : null;
+
+        $trangThaiHopLe = ['pending', 'approved', 'rejected', 'in_progress', 'completed', 'accepted'];
+        if ($trangThai !== null && $trangThai !== '' && !in_array($trangThai, $trangThaiHopLe, true)) {
+            throw new ValidationException([
+                ['field' => 'trang_thai', 'issue' => 'Trang thai khong hop le'],
+            ]);
+        }
+
+        if ($lopHocPhanId !== null && $lopHocPhanId <= 0) {
+            throw new ValidationException([
+                ['field' => 'lop_hoc_phan_id', 'issue' => 'Phai la so nguyen duong'],
+            ]);
+        }
+
+        $sapXepHopLe = ['created_at', 'ten_de_tai', 'trang_thai'];
+        $sapXep = $sapXep ?: 'created_at';
+        $huong = strtoupper($huong ?: 'DESC');
+
+        if (!in_array($sapXep, $sapXepHopLe, true)) {
+            throw new ValidationException([
+                ['field' => 'sap_xep', 'issue' => 'Chi duoc sap xep theo created_at, ten_de_tai hoac trang_thai'],
+            ]);
+        }
+        if (!in_array($huong, ['ASC', 'DESC'], true)) {
+            throw new ValidationException([
+                ['field' => 'huong', 'issue' => 'Chi duoc dung ASC hoac DESC'],
+            ]);
+        }
+
         $userId = (int) ($currentUser['id'] ?? 0);
 
         if ($this->coVaiTro($currentUser, 'THU_KY_KHOA')) {
-            return $this->repo->findTheoPhamVi($page, $size, $trangThai);
-        }
-        if ($this->coVaiTro($currentUser, 'GVHD')) {
-            return $this->repo->findTheoPhamVi($page, $size, $trangThai, null, $userId);
-        }
-        if ($this->coVaiTro($currentUser, 'SINH_VIEN')) {
-            return $this->repo->findTheoPhamVi($page, $size, $trangThai, $userId);
-        }
-        if ($this->coVaiTro($currentUser, 'HOI_DONG')) {
-            return $this->repo->findTheoPhamVi($page, $size, $trangThai, null, null, self::TRANG_THAI_HOI_DONG);
+            return $this->repo->findAllPaginated($page, $size, $trangThai, $tuKhoa, $lopHocPhanId, null, null, null, $sapXep, $huong);
         }
 
-        return ['items' => [], 'total' => 0, 'page' => $page, 'size' => $size];
+        if ($this->coVaiTro($currentUser, 'GVHD')) {
+            return $this->repo->findAllPaginated($page, $size, $trangThai, $tuKhoa, $lopHocPhanId, null, $userId, null, $sapXep, $huong);
+        }
+
+        if ($this->coVaiTro($currentUser, 'SINH_VIEN')) {
+            return $this->repo->findAllPaginated($page, $size, $trangThai, $tuKhoa, $lopHocPhanId, $userId, null, null, $sapXep, $huong);
+        }
+
+        if ($this->coVaiTro($currentUser, 'HOI_DONG')) {
+            return $this->repo->findAllPaginated($page, $size, $trangThai, $tuKhoa, $lopHocPhanId, null, null, self::TRANG_THAI_HOI_DONG, $sapXep, $huong);
+        }
+
+        return ['items' => [], 'total' => 0, 'page' => $page, 'size' => $size, 'total_pages' => 0];
     }
 
     /**

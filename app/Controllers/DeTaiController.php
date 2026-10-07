@@ -46,18 +46,31 @@ class DeTaiController extends BaseController
     public function index()
     {
         try {
-            $page = max(1, (int) ($this->request->getGet('page') ?? 1));
+            $page = (int) ($this->request->getGet('page') ?? 1);
             $size = (int) ($this->request->getGet('size') ?? 20);
             $trangThai = $this->request->getGet('trang_thai') ?: null;
+            $tuKhoa = $this->request->getGet('tu_khoa') ?: null;
+            $lopHocPhanId = $this->request->getGet('lop_hoc_phan_id');
+            $lopHocPhanId = $lopHocPhanId === null || $lopHocPhanId === '' ? null : (int) $lopHocPhanId;
+            $sapXep = $this->request->getGet('sap_xep') ?: 'created_at';
+            $huong = $this->request->getGet('huong') ?: 'DESC';
 
-            if ($size < 1) {
-                $size = 20;
-            }
-            if ($size > 100) {
-                $size = 100; // chan client tu dat size qua lon lam sap he thong
+            if ($page < 1 || $size < 1 || $size > 100) {
+                throw new ValidationException([
+                    ['field' => 'page/size', 'issue' => 'Page phai >= 1 va size phai tu 1 den 100'],
+                ]);
             }
 
-            $ketQua = $this->service()->listForUser($page, $size, $trangThai, $this->nguoiDungHienTai());
+            $ketQua = $this->service()->listForUser(
+                $page,
+                $size,
+                $trangThai,
+                $tuKhoa,
+                $lopHocPhanId,
+                $sapXep,
+                $huong,
+                $this->nguoiDungHienTai()
+            );
 
             return $this->respondSuccess($ketQua);
         } catch (ApiException $e) {

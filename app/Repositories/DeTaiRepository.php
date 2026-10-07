@@ -14,23 +14,74 @@ class DeTaiRepository extends BaseRepository
 
     protected array $allowedFields = ['ten_de_tai', 'mo_ta_pham_vi', 'trang_thai', 'sinh_vien_de_xuat_id', 'gvhd_id', 'lop_hoc_phan_id'];
 
-    public function findAllPaginated(int $page, int $size, ?string $trangThai = null): array
+    public function findAllPaginated(
+        int $page,
+        int $size,
+        ?string $trangThai = null,
+        ?string $tuKhoa = null,
+        ?int $lopHocPhanId = null,
+        ?int $sinhVienId = null,
+        ?int $gvhdId = null,
+        ?array $chiTrangThai = null,
+        string $sapXep = 'created_at',
+        string $huong = 'DESC'
+    ): array
     {
         $builder = $this->db->table('de_tai');
 
-        if ($trangThai !== null) {
+        if ($tuKhoa !== null && trim($tuKhoa) !== '') {
+            $tuKhoa = trim($tuKhoa);
+            $builder->groupStart()
+                ->like('ten_de_tai', $tuKhoa)
+                ->orLike('mo_ta_pham_vi', $tuKhoa)
+                ->groupEnd();
+        }
+
+        if ($lopHocPhanId !== null) {
+            $builder->where('lop_hoc_phan_id', $lopHocPhanId);
+        }
+
+        if ($sinhVienId !== null) {
+            $builder->groupStart()
+                ->where('sinh_vien_de_xuat_id', $sinhVienId)
+                ->orWhereIn(
+                    'id',
+                    static fn ($sub) => $sub->select('de_tai_id')
+                        ->from('thanh_vien_nhom')
+                        ->where('sinh_vien_id', $sinhVienId)
+                )
+                ->groupEnd();
+        }
+
+        if ($gvhdId !== null) {
+            $builder->where('gvhd_id', $gvhdId);
+        }
+
+        if ($chiTrangThai !== null) {
+            $builder->whereIn('trang_thai', $chiTrangThai);
+        }
+
+        if ($trangThai !== null && $trangThai !== '') {
             $builder->where('trang_thai', $trangThai);
         }
 
         $total = $builder->countAllResults(false);
+        $offset = ($page - 1) * $size;
 
         $rows = $builder
-            ->orderBy('created_at', 'DESC')
-            ->limit($size, ($page - 1) * $size)
+            ->orderBy($sapXep, $huong)
+            ->orderBy('id', 'DESC')
+            ->limit($size, $offset)
             ->get()
             ->getResultArray();
 
-        return ['items' => $rows, 'total' => $total, 'page' => $page, 'size' => $size];
+        return [
+            'items'       => $rows,
+            'total'       => $total,
+            'page'        => $page,
+            'size'        => $size,
+            'total_pages' => $total > 0 ? (int) ceil($total / $size) : 0,
+        ];
     }
 
     /** Danh sach de tai theo lop hoc phan, loc theo trang thai (tuy chon) */
