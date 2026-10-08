@@ -5,6 +5,7 @@ namespace App\Controllers;
 use App\Exceptions\ApiException;
 use App\Exceptions\ValidationException;
 use App\Repositories\NguoiDungRepository;
+use App\Repositories\NhatKyHeThongRepository;
 use App\Services\XacThucService;
 use CodeIgniter\HTTP\Exceptions\HTTPException;
 use Config\Database;
@@ -72,7 +73,7 @@ class XacThucController extends BaseController
                 throw new ValidationException([['field' => 'ten_dang_nhap, mat_khau', 'issue' => 'Khong duoc de trong']]);
             }
 
-            $hoSo = $this->service()->dangNhap($tenDangNhap, $matKhau);
+            $hoSo = $this->service()->dangNhap($tenDangNhap, $matKhau, $this->request->getIPAddress());
 
             // Tao lai ma phien sau khi xac thuc de chan chiem phien
             $session = session();
@@ -91,6 +92,10 @@ class XacThucController extends BaseController
     /** POST /api/v1/auth/dang-xuat */
     public function dangXuat()
     {
+        $nguoiDung = session()->get('nguoi_dung');
+        if ($nguoiDung) {
+            $this->service()->dangXuat((int) $nguoiDung['id'], $this->request->getIPAddress());
+        }
         session()->destroy();
 
         return $this->response->setStatusCode(204);
@@ -158,7 +163,7 @@ class XacThucController extends BaseController
                 throw new ValidationException([['field' => 'mat_khau_cu, mat_khau_moi', 'issue' => 'Bat buoc; mat khau moi tu 8 den 72 ky tu']]);
             }
 
-            $this->service()->doiMatKhau($this->nguoiDungHienTai()['id'], $matCu, $matMoi);
+            $this->service()->doiMatKhau($this->nguoiDungHienTai()['id'], $matCu, $matMoi, $this->request->getIPAddress());
 
             return $this->respondSuccess(['da_doi' => true]);
         } catch (ApiException $e) {
@@ -168,7 +173,9 @@ class XacThucController extends BaseController
 
     private function service(): XacThucService
     {
-        return new XacThucService(new NguoiDungRepository(Database::connect()));
+        $db = Database::connect();
+
+        return new XacThucService(new NguoiDungRepository($db), new NhatKyHeThongRepository($db));
     }
 
     /** Nhan ca JSON lan form; JSON hong tra 422 thay vi de loi 500 */

@@ -721,6 +721,28 @@ paths:
         '200': { $ref: '#/components/responses/ThanhCong' }
         '403': { $ref: '#/components/responses/KhongDuQuyen' }
 
+  /bao-cao-moc/{id}/tep:
+    parameters: [ { $ref: '#/components/parameters/Id' } ]
+    get:
+      tags: [Mốc tiến độ]
+      summary: Tải tệp báo cáo mốc về (K6, F3.11)
+      description: >
+        Tệp lưu ngoài thư mục web (writable/uploads), chỉ lấy được qua điểm cuối này. Được tải: thư ký khoa,
+        GVHD phụ trách, sinh viên trong nhóm; hội đồng khi đề tài đủ điều kiện hoặc đã nghiệm thu. Người khác 403
+        và ghi nhật ký UNAUTHORIZED_ACCESS. Chỉ mở tệp có đường dẫn đúng mẫu bao_cao/<32 ký tự hex>.pdf|docx
+        nằm trong thư mục lưu; tên tải về là tên gốc đã bỏ ký tự điều khiển, ngoặc kép. Mỗi lần tải ghi DOWNLOAD_REPORT.
+      responses:
+        '200':
+          description: Tệp tải về (Content-Disposition attachment, X-Content-Type-Options nosniff)
+          content:
+            application/pdf:
+              schema: { type: string, format: binary }
+            application/vnd.openxmlformats-officedocument.wordprocessingml.document:
+              schema: { type: string, format: binary }
+        '401': { $ref: '#/components/responses/ChuaXacThuc' }
+        '403': { $ref: '#/components/responses/KhongDuQuyen' }
+        '404': { $ref: '#/components/responses/KhongTimThay' }
+
   /nghiem-thu/ho-so:
     get:
       tags: [Nghiệm thu]
@@ -798,33 +820,49 @@ paths:
         '404': { $ref: '#/components/responses/KhongTimThay' }
         '422': { $ref: '#/components/responses/SaiTrangThai' }
 
-  /thong-ke/tien-do:
+  /thong-ke/{loai}:
+    parameters:
+      - { name: loai, in: path, required: true, schema: { type: string, enum: [de-tai-theo-lop, tien-do-nop, gvhd] } }
     get:
       tags: [Thống kê và nhật ký]
-      summary: Thống kê tiến độ toàn khoa (YCCN-17, UC05)
-      description: Thư ký khoa xem toàn khoa, GVHD chỉ xem trong phạm vi phụ trách.
+      summary: Ba báo cáo tổng hợp (YCCN-17, UC05)
+      description: >
+        de-tai-theo-lop – đề tài theo lớp học phần và trạng thái (lọc theo ngày đề xuất);
+        tien-do-nop – tiến độ nộp báo cáo theo mốc: đúng hạn, trễ (theo bản nộp đầu tiên), chưa nộp, kết quả duyệt
+        theo bản nộp mới nhất (lọc theo hạn nộp); gvhd – tải hướng dẫn và điểm nghiệm thu theo GVHD (điểm chỉ tính
+        đề tài đã chốt). Thư ký khoa xem toàn khoa, GVHD chỉ xem đề tài mình hướng dẫn, vai trò khác 403.
+        Trả về tieu_de, tu_ngay, den_ngay, pham_vi (toan_khoa | gvhd), cot (khoa, nhan, la_so) và dong.
       parameters:
-        - { name: lop, in: query, schema: { type: string } }
-        - { name: gvhd_id, in: query, schema: { type: integer, format: int64 } }
-        - { name: tu_ngay, in: query, schema: { type: string, format: date } }
-        - { name: den_ngay, in: query, schema: { type: string, format: date } }
+        - { name: tu_ngay, in: query, schema: { type: string, format: date }, description: 'Mặc định ngày 01/01 năm hiện tại' }
+        - { name: den_ngay, in: query, schema: { type: string, format: date }, description: 'Mặc định ngày 31/12 năm hiện tại, tính cả ngày này' }
       responses:
         '200': { $ref: '#/components/responses/ThanhCong' }
         '403': { $ref: '#/components/responses/KhongDuQuyen' }
+        '404': { $ref: '#/components/responses/KhongTimThay' }
+        '422': { $ref: '#/components/responses/SaiDuLieu' }
 
-  /thong-ke/tien-do/xuat:
+  /thong-ke/{loai}/xuat:
+    parameters:
+      - { name: loai, in: path, required: true, schema: { type: string, enum: [de-tai-theo-lop, tien-do-nop, gvhd] } }
     get:
       tags: [Thống kê và nhật ký]
-      summary: Xuất báo cáo thống kê CSV hoặc Excel (YCCN-18)
+      summary: Xuất báo cáo ra tệp CSV (YCCN-18)
+      description: >
+        Chỉ thư ký khoa. Tệp CSV UTF-8 có BOM (Excel đọc đúng tiếng Việt), tách bằng dấu phẩy, chuỗi bao ngoặc kép;
+        ô bắt đầu bằng = + - @ được thêm dấu nháy đơn để không thành công thức. Ghi nhật ký EXPORT_REPORT.
       parameters:
-        - { name: dinh_dang, in: query, schema: { type: string, enum: [csv, xlsx], default: csv } }
+        - { name: dinh_dang, in: query, schema: { type: string, enum: [csv], default: csv } }
+        - { name: tu_ngay, in: query, schema: { type: string, format: date } }
+        - { name: den_ngay, in: query, schema: { type: string, format: date } }
       responses:
         '200':
-          description: Tệp kết xuất
+          description: Tệp kết xuất (Content-Disposition attachment)
           content:
             text/csv:
               schema: { type: string, format: binary }
         '403': { $ref: '#/components/responses/KhongDuQuyen' }
+        '404': { $ref: '#/components/responses/KhongTimThay' }
+        '422': { $ref: '#/components/responses/SaiDuLieu' }
 
   /nhat-ky-he-thong:
     get:

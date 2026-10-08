@@ -44,6 +44,7 @@ $routes->group('api/v1', static function ($routes) {
     $routes->post('de-tai/(:num)/bao-cao-moc', 'BaoCaoMocController::create/$1', ['filter' => 'quyen:F3.4']);
     $routes->get('bao-cao-moc/(:num)', 'BaoCaoMocController::show/$1', ['filter' => 'quyen:F3.6']);
     $routes->get('bao-cao-moc/(:num)/lich-su', 'BaoCaoMocController::lichSu/$1', ['filter' => 'quyen:F3.10']);
+    $routes->get('bao-cao-moc/(:num)/tep', 'TaiTepController::baoCaoMoc/$1', ['filter' => 'quyen:F3.11']);
     $routes->post('bao-cao-moc/(:num)', 'BaoCaoMocController::nopLai/$1', ['filter' => 'quyen:F3.5']);
     $routes->post('bao-cao-moc/(:num)/duyet', 'BaoCaoMocController::duyet/$1', ['filter' => 'quyen:F3.7']);
     $routes->post('bao-cao-moc/(:num)/yeu-cau-bo-sung', 'BaoCaoMocController::yeuCauBoSung/$1', ['filter' => 'quyen:F3.8']);
@@ -54,6 +55,10 @@ $routes->group('api/v1', static function ($routes) {
     $routes->post('de-tai/(:num)/diem-nghiem-thu', 'NghiemThuController::cham/$1', ['filter' => 'quyen:F4.3']);
     $routes->get('de-tai/(:num)/diem-nghiem-thu', 'NghiemThuController::xemDiem/$1', ['filter' => 'quyen:F4.4']);
     $routes->post('de-tai/(:num)/chot-nghiem-thu', 'NghiemThuController::chot/$1', ['filter' => 'quyen:F4.5']);
+
+    // Bao cao thong ke (K7): {loai} = de-tai-theo-lop | tien-do-nop | gvhd
+    $routes->get('thong-ke/(:segment)', 'ThongKeController::index/$1', ['filter' => 'quyen:F5.1']);
+    $routes->get('thong-ke/(:segment)/xuat', 'ThongKeController::xuat/$1', ['filter' => 'quyen:F5.2']);
 
     // Nhom sinh vien: ma nhom {id} la ma de tai cua nhom
     $routes->get('nhom-sinh-vien/(:num)', 'NhomSinhVienController::show/$1', ['filter' => 'quyen:F2.10']);
