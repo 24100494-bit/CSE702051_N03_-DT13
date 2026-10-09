@@ -73,10 +73,11 @@ class DeTaiService
 
         $userId = (int) ($currentUser['id'] ?? 0);
 
-        // Sinh vien: de tai do chinh minh de xuat hoac minh la thanh vien nhom
-        $isThanhVien = $this->coVaiTro($currentUser, 'SINH_VIEN')
-            && ((int) $deTai['sinh_vien_de_xuat_id'] === $userId
-                || ($this->thanhVienRepo && $this->thanhVienRepo->laThanhVien($id, $userId)));
+        // Theo ma tran F2.3 va F3.10, sinh vien chi xem chi tiet/lich su
+        // cua de tai do chinh minh de xuat. Quyen xem theo nhom duoc quy dinh
+        // rieng cho cac diem cuoi F2.10, F2.11 va F3.11.
+        $isChuDeTai = $this->coVaiTro($currentUser, 'SINH_VIEN')
+            && (int) $deTai['sinh_vien_de_xuat_id'] === $userId;
 
         // GVHD: chi duoc xem de tai do minh phu trach
         $isGvhdPhuTrach = $this->coVaiTro($currentUser, 'GVHD')
@@ -89,7 +90,7 @@ class DeTaiService
         $isHoiDong = $this->coVaiTro($currentUser, 'HOI_DONG') && in_array($deTai['trang_thai'], self::TRANG_THAI_HOI_DONG, true);
 
         // Kiem quyen tren dung doi tuong (chong IDOR)
-        if (!$isThanhVien && !$isGvhdPhuTrach && !$isThuKy && !$isHoiDong) {
+        if (!$isChuDeTai && !$isGvhdPhuTrach && !$isThuKy && !$isHoiDong) {
             throw new ForbiddenException('Ban khong co quyen xem de tai nay');
         }
 
