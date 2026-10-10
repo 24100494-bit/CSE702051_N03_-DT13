@@ -59,7 +59,7 @@ paths:
     post:
       tags: [Người dùng và xác thực]
       summary: Đăng nhập (YCCN-02)
-      description: Sai quá 5 lần trong 15 phút thì trả 429 (rủi ro BM10).
+      description: Sai quá 5 lần trong 15 phút thì trả 429 (rủi ro BM10), đếm riêng theo địa chỉ IP và theo tài khoản; đăng nhập đúng thì bộ đếm của tài khoản về 0. Lần bị chặn ghi nhật ký LOGIN_BLOCKED.
       security: []
       requestBody:
         required: true
@@ -1071,7 +1071,11 @@ components:
         application/json:
           schema: { $ref: '#/components/schemas/Loi' }
     VuotTanSuat:
-      description: Vượt giới hạn tần suất (429)
+      description: Vượt giới hạn tần suất (429, code TOO_MANY_ATTEMPTS)
+      headers:
+        Retry-After:
+          description: Số giây phải chờ trước khi thử lại
+          schema: { type: integer }
       content:
         application/json:
           schema: { $ref: '#/components/schemas/Loi' }
