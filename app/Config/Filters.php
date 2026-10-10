@@ -2,7 +2,9 @@
 
 namespace Config;
 
+use App\Filters\KiemNguonFilter;
 use App\Filters\PhanQuyenFilter;
+use App\Filters\TieuDeBaoMatFilter;
 use CodeIgniter\Config\Filters as BaseFilters;
 use CodeIgniter\Filters\Cors;
 use CodeIgniter\Filters\CSRF;
@@ -36,6 +38,8 @@ class Filters extends BaseFilters
         'pagecache'     => PageCache::class,
         'performance'   => PerformanceMetrics::class,
         'quyen'         => PhanQuyenFilter::class,
+        'kiemnguon'     => KiemNguonFilter::class,
+        'tieudebaomat'  => TieuDeBaoMatFilter::class,
     ];
 
     /**
@@ -81,6 +85,7 @@ class Filters extends BaseFilters
         'after' => [
             // 'honeypot',
             // 'secureheaders',
+            'tieudebaomat', // BM12: HSTS, nosniff, X-Frame-Options, Referrer-Policy, CSP
         ],
     ];
 
@@ -108,5 +113,8 @@ class Filters extends BaseFilters
      *
      * @var array<string, array<string, list<string>>>
      */
-    public array $filters = [];
+    public array $filters = [
+        // Chong CSRF (BM3): chan yeu cau doi du lieu den tu trang khac, chay truoc bo loc quyen cua route
+        'kiemnguon' => ['before' => ['api/*']],
+    ];
 }
