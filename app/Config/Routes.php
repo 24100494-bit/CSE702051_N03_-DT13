@@ -7,6 +7,8 @@ use CodeIgniter\Router\RouteCollection;
  */
 // Trang goc vao thang trang dang nhap (khong de trang chao mac dinh cua framework, BM9)
 $routes->get('/', 'TrangController::dangNhap');
+// curl -I gui HEAD: tra dung trang va the tieu de bao mat thay vi 404 (BM12)
+$routes->head('/', 'TrangController::dangNhap');
 
 $routes->get('dang-nhap', 'TrangController::dangNhap');
 $routes->get('trang-chu', 'TrangController::trangChu');
