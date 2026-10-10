@@ -6,11 +6,13 @@ use App\Exceptions\ApiException;
 use App\Exceptions\UnauthenticatedException;
 use App\Exceptions\ValidationException;
 use App\Repositories\NguoiDungRepository;
+use App\Repositories\NhatKyHeThongRepository;
 use Throwable;
 
 /**
  * TANG NGHIEP VU (Service) - dang ky, dang nhap
  * Mat khau bam bang bcrypt cost 12 qua ham co san password_hash (Muc 5.3 tai lieu ky thuat).
+ * Dang nhap thanh cong/that bai, dang xuat, doi mat khau duoc ghi nhat ky he thong (khoi K8); khong bao gio ghi mat khau.
  */
 class XacThucService
 {
@@ -23,10 +25,12 @@ class XacThucService
     private const MA_BAM_GIA = '$2y$12$f6PVy9lTz7QHHDcDcnvroO31dlX.03i0lD16gD4fdhg3MAEy2RX3m';
 
     protected NguoiDungRepository $repo;
+    protected ?NhatKyHeThongRepository $nhatKyRepo;
 
-    public function __construct(NguoiDungRepository $repo)
+    public function __construct(NguoiDungRepository $repo, ?NhatKyHeThongRepository $nhatKyRepo = null)
     {
-        $this->repo = $repo;
+        $this->repo       = $repo;
+        $this->nhatKyRepo = $nhatKyRepo;
     }
 
     /**
@@ -64,22 +68,29 @@ class XacThucService
         return $this->layHoSo($id);
     }
 
-    public function dangNhap(string $tenDangNhap, string $matKhau): array
+    public function dangNhap(string $tenDangNhap, string $matKhau, ?string $diaChiIp = null): array
     {
         $nguoiDung = $this->repo->findByTenDangNhap($tenDangNhap);
 
         if (! $nguoiDung) {
             password_verify($matKhau, self::MA_BAM_GIA);
+            $this->ghiNhatKy(null, 'LOGIN_FAILED', 'Dang nhap that bai: ten dang nhap khong ton tai (' . mb_substr($tenDangNhap, 0, 50) . ')', $diaChiIp);
 
             throw new UnauthenticatedException('Sai ten dang nhap hoac mat khau');
         }
 
+        $id = (int) $nguoiDung['id'];
+
         if (! password_verify($matKhau, $nguoiDung['mat_khau_hash'])) {
+            $this->ghiNhatKy($id, 'LOGIN_FAILED', 'Dang nhap that bai: sai mat khau', $diaChiIp);
+
             throw new UnauthenticatedException('Sai ten dang nhap hoac mat khau');
         }
 
         // Chi bao bi khoa khi da dung mat khau, de nguoi ngoai khong do duoc tai khoan nao bi khoa
         if ((int) $nguoiDung['bi_khoa'] === 1) {
+            $this->ghiNhatKy($id, 'LOGIN_FAILED', 'Dang nhap that bai: tai khoan dang bi khoa', $diaChiIp);
+
             throw new ApiException(403, 'ACCOUNT_LOCKED', 'Tai khoan dang bi khoa, lien he thu ky khoa');
         }
 
@@ -90,7 +101,15 @@ class XacThucService
             );
         }
 
-        return $this->layHoSo((int) $nguoiDung['id']);
+        $this->ghiNhatKy($id, 'LOGIN_SUCCESS', 'Dang nhap thanh cong', $diaChiIp);
+
+        return $this->layHoSo($id);
+    }
+
+    /** Ghi nhat ky dang xuat; goi truoc khi huy phien */
+    public function dangXuat(int $id, ?string $diaChiIp = null): void
+    {
+        $this->ghiNhatKy($id, 'LOGOUT', 'Dang xuat', $diaChiIp);
     }
 
     /** Ho so tra ve cho client, vai tro doi sang chu thuong cho khop tang Service */
@@ -116,7 +135,7 @@ class XacThucService
     }
 
     /** F1.4 - doi mat khau, bat buoc dung mat khau cu */
-    public function doiMatKhau(int $id, string $matKhauCu, string $matKhauMoi): void
+    public function doiMatKhau(int $id, string $matKhauCu, string $matKhauMoi, ?string $diaChiIp = null): void
     {
         $hash = $this->repo->findMatKhauHash($id);
 
@@ -128,5 +147,13 @@ class XacThucService
         }
 
         $this->repo->updateMatKhauHash($id, password_hash($matKhauMoi, PASSWORD_BCRYPT, ['cost' => self::BCRYPT_COST]));
+        $this->ghiNhatKy($id, 'CHANGE_PASSWORD', 'Doi mat khau', $diaChiIp);
+    }
+
+    private function ghiNhatKy(?int $nguoiDungId, string $hanhDong, string $chiTiet, ?string $diaChiIp): void
+    {
+        if ($this->nhatKyRepo !== null) {
+            $this->nhatKyRepo->ghiNhan($nguoiDungId, $hanhDong, $chiTiet, $diaChiIp);
+        }
     }
 }

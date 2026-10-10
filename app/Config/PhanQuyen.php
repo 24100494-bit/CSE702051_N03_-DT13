@@ -40,6 +40,7 @@ class PhanQuyen extends BaseConfig
         'F3.8'  => ['gvhd'],                                         // Yeu cau bo sung bao cao moc
         'F3.9'  => [],                                               // Quet va danh dau qua han (noi bo)
         'F3.10' => ['sinh_vien', 'gvhd'],                            // Xem lich su trang thai de tai / moc
+        'F3.11' => ['sinh_vien', 'gvhd', 'thu_ky_khoa', 'hoi_dong'], // Tai tep bao cao moc ve (Service kiem quyen tren tung de tai)
         'F4.1'  => ['hoi_dong'],                                     // Danh sach ho so du dieu kien nghiem thu
         'F4.2'  => ['hoi_dong'],                                     // Xem chi tiet ho so nghiem thu
         'F4.3'  => ['hoi_dong'],                                     // Cham diem nghiem thu

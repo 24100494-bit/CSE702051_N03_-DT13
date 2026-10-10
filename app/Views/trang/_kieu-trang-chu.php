@@ -45,4 +45,18 @@
     th, td { text-align: left; padding: 8px; border-bottom: 1px solid #e5e7eb; vertical-align: top; }
     th { background: #f8fafc; }
     .cuon-ngang { overflow-x: auto; }
+    .khoi-bao-cao { border-top: 1px solid #e5e7eb; padding: 14px 0 6px; margin-top: 10px; }
+    .bieu-do { display: block; width: 100%; height: auto; margin: 6px 0; }
+    .bieu-do .luoi { stroke: #e5e7eb; stroke-width: 1; }
+    .bieu-do .truc { font-size: 11px; fill: #6b7280; }
+    .bieu-do .nhan-dong { font-size: 12px; fill: #374151; }
+    .bieu-do .nhan-tong { font-size: 12px; font-weight: 600; fill: #1f2937; }
+    .bieu-do .doan:hover { opacity: .8; }
+    .chu-giai { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 13px; color: #374151; margin: 6px 0; }
+    .o-mau { display: inline-block; width: 12px; height: 12px; border-radius: 3px; margin-right: 6px; vertical-align: -1px; }
+    th.so, td.so { text-align: right; font-variant-numeric: tabular-nums; }
+    details summary { cursor: pointer; font-size: 14px; color: #1d4ed8; margin: 6px 0; }
+    .nut-tai { margin-left: auto; padding: 6px 12px; font-size: 14px; font-weight: 600; color: #1d4ed8; border: 1px solid #1d4ed8; border-radius: 8px; text-decoration: none; }
+    .nut-tai:hover { background: #eff6ff; }
+    .muc-con .nut-tai, li .nut-tai { margin-left: 0; padding: 2px 10px; font-size: 13px; }
 </style>
