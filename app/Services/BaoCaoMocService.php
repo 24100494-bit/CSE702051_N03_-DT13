@@ -167,10 +167,12 @@ class BaoCaoMocService
     {
         $userId = (int) $currentUser['id'];
 
+        // Ma tran F3.6 va F3.10 chi cap quyen cho chu de tai; quyen xem tep
+        // theo nhom duoc xu ly rieng trong TaiTepService (F3.11).
         $duocXem = $this->coVaiTro($currentUser, 'THU_KY_KHOA')
             || ($this->coVaiTro($currentUser, 'GVHD') && (int) $deTai['gvhd_id'] === $userId)
             || ($this->coVaiTro($currentUser, 'SINH_VIEN')
-                && ((int) $deTai['sinh_vien_de_xuat_id'] === $userId || $this->thanhVienRepo->laThanhVien((int) $deTai['id'], $userId)));
+                && (int) $deTai['sinh_vien_de_xuat_id'] === $userId);
 
         if (!$duocXem) {
             throw new ForbiddenException('Ban khong co quyen xem bao cao nay');

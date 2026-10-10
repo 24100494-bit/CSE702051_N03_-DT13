@@ -175,8 +175,10 @@ class NghiemThuService
         $userId  = (int) $currentUser['id'];
         $noiBo   = $this->coVaiTro($currentUser, 'THU_KY_KHOA')
             || ($this->coVaiTro($currentUser, 'HOI_DONG') && in_array($deTai['trang_thai'], DeTaiService::TRANG_THAI_HOI_DONG, true));
+        // Ma tran F4.4 quy dinh sinh vien la chu de tai moi duoc xem diem
+        // sau khi ket qua da chot; khong mo rong sang thanh vien khac trong nhom.
         $nhom    = $this->coVaiTro($currentUser, 'SINH_VIEN')
-            && ((int) $deTai['sinh_vien_de_xuat_id'] === $userId || $this->thanhVienRepo->laThanhVien($deTaiId, $userId));
+            && (int) $deTai['sinh_vien_de_xuat_id'] === $userId;
         $gvhd    = $this->coVaiTro($currentUser, 'GVHD') && (int) $deTai['gvhd_id'] === $userId;
 
         if (!$noiBo && !$nhom && !$gvhd) {

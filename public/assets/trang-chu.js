@@ -51,6 +51,7 @@
             if (k === 'class') e.className = v;
             else if (k === 'text') e.textContent = v;
             else if (k.startsWith('on')) e.addEventListener(k.slice(2), v);
+            else if (k === 'style') e.style.cssText = v; // gan qua CSSOM, CSP khong cho thuoc tinh style
             else if (v !== false && v !== null && v !== undefined) e.setAttribute(k, v === true ? '' : v);
         });
         con.flat().forEach((c) => { if (c !== null && c !== undefined && c !== false) e.append(c instanceof Node ? c : String(c)); });

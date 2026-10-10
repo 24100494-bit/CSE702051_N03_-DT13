@@ -3,7 +3,9 @@
 namespace App\Controllers;
 
 use App\Exceptions\ApiException;
+use App\Exceptions\TooManyRequestsException;
 use App\Exceptions\ValidationException;
+use App\Repositories\GioiHanDangNhapRepository;
 use App\Repositories\NguoiDungRepository;
 use App\Repositories\NhatKyHeThongRepository;
 use App\Services\XacThucService;
@@ -84,6 +86,8 @@ class XacThucController extends BaseController
             ]);
 
             return $this->respondSuccess($hoSo);
+        } catch (TooManyRequestsException $e) {
+            return $this->respondError($e)->setHeader('Retry-After', (string) $e->getRetryAfter());
         } catch (ApiException $e) {
             return $this->respondError($e);
         }
@@ -175,7 +179,7 @@ class XacThucController extends BaseController
     {
         $db = Database::connect();
 
-        return new XacThucService(new NguoiDungRepository($db), new NhatKyHeThongRepository($db));
+        return new XacThucService(new NguoiDungRepository($db), new NhatKyHeThongRepository($db), new GioiHanDangNhapRepository($db));
     }
 
     /** Nhan ca JSON lan form; JSON hong tra 422 thay vi de loi 500 */
