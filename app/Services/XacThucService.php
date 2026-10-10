@@ -3,8 +3,10 @@
 namespace App\Services;
 
 use App\Exceptions\ApiException;
+use App\Exceptions\TooManyRequestsException;
 use App\Exceptions\UnauthenticatedException;
 use App\Exceptions\ValidationException;
+use App\Repositories\GioiHanDangNhapRepository;
 use App\Repositories\NguoiDungRepository;
 use App\Repositories\NhatKyHeThongRepository;
 use Throwable;
@@ -13,10 +15,15 @@ use Throwable;
  * TANG NGHIEP VU (Service) - dang ky, dang nhap
  * Mat khau bam bang bcrypt cost 12 qua ham co san password_hash (Muc 5.3 tai lieu ky thuat).
  * Dang nhap thanh cong/that bai, dang xuat, doi mat khau duoc ghi nhat ky he thong (khoi K8); khong bao gio ghi mat khau.
+ * Chong do mat khau (BM10): sai SO_LAN_SAI_TOI_DA lan trong CUA_SO_GIAY giay thi lan sau tra 429,
+ * dem rieng theo dia chi IP va theo tai khoan; lan bi chan ghi LOGIN_BLOCKED.
  */
 class XacThucService
 {
     public const BCRYPT_COST = 12;
+
+    public const SO_LAN_SAI_TOI_DA = 5;
+    public const CUA_SO_GIAY       = 900;
 
     /**
      * Ma bam gia de van chay password_verify khi ten dang nhap khong ton tai,
@@ -26,11 +33,16 @@ class XacThucService
 
     protected NguoiDungRepository $repo;
     protected ?NhatKyHeThongRepository $nhatKyRepo;
+    protected ?GioiHanDangNhapRepository $gioiHanRepo;
 
-    public function __construct(NguoiDungRepository $repo, ?NhatKyHeThongRepository $nhatKyRepo = null)
-    {
-        $this->repo       = $repo;
-        $this->nhatKyRepo = $nhatKyRepo;
+    public function __construct(
+        NguoiDungRepository $repo,
+        ?NhatKyHeThongRepository $nhatKyRepo = null,
+        ?GioiHanDangNhapRepository $gioiHanRepo = null
+    ) {
+        $this->repo        = $repo;
+        $this->nhatKyRepo  = $nhatKyRepo;
+        $this->gioiHanRepo = $gioiHanRepo;
     }
 
     /**
@@ -70,11 +82,14 @@ class XacThucService
 
     public function dangNhap(string $tenDangNhap, string $matKhau, ?string $diaChiIp = null): array
     {
-        $nguoiDung = $this->repo->findByTenDangNhap($tenDangNhap);
+        $nguoiDung          = $this->repo->findByTenDangNhap($tenDangNhap);
+        $chiTietKhongTonTai = 'Dang nhap that bai: ten dang nhap khong ton tai (' . mb_substr($tenDangNhap, 0, 50) . ')';
+
+        $this->kiemGioiHan($nguoiDung ? (int) $nguoiDung['id'] : null, $tenDangNhap, $chiTietKhongTonTai, $diaChiIp);
 
         if (! $nguoiDung) {
             password_verify($matKhau, self::MA_BAM_GIA);
-            $this->ghiNhatKy(null, 'LOGIN_FAILED', 'Dang nhap that bai: ten dang nhap khong ton tai (' . mb_substr($tenDangNhap, 0, 50) . ')', $diaChiIp);
+            $this->ghiNhatKy(null, 'LOGIN_FAILED', $chiTietKhongTonTai, $diaChiIp);
 
             throw new UnauthenticatedException('Sai ten dang nhap hoac mat khau');
         }
@@ -148,6 +163,46 @@ class XacThucService
 
         $this->repo->updateMatKhauHash($id, password_hash($matKhauMoi, PASSWORD_BCRYPT, ['cost' => self::BCRYPT_COST]));
         $this->ghiNhatKy($id, 'CHANGE_PASSWORD', 'Doi mat khau', $diaChiIp);
+    }
+
+    /**
+     * Chan truoc khi kiem mat khau, ke ca khi mat khau dung. Ten dang nhap khong ton tai cung bi dem va chan
+     * nhu tai khoan that, de khong do duoc tai khoan nao co that qua ma 429.
+     */
+    private function kiemGioiHan(?int $nguoiDungId, string $tenDangNhap, string $chiTietKhongTonTai, ?string $diaChiIp): void
+    {
+        if ($this->gioiHanRepo === null) {
+            return;
+        }
+
+        $danhSach = [];
+        if ($diaChiIp !== null && $diaChiIp !== '') {
+            $danhSach['dia chi IP'] = $this->gioiHanRepo->tuoiLanSaiTheoIp($diaChiIp, self::CUA_SO_GIAY);
+        }
+        $danhSach['tai khoan'] = $nguoiDungId !== null
+            ? $this->gioiHanRepo->tuoiLanSaiTheoTaiKhoan($nguoiDungId, self::CUA_SO_GIAY)
+            : $this->gioiHanRepo->tuoiLanSaiTheoChiTiet($chiTietKhongTonTai, self::CUA_SO_GIAY);
+
+        $theo = [];
+        $cho  = 0;
+        foreach ($danhSach as $ten => $tuoi) {
+            if (count($tuoi) >= self::SO_LAN_SAI_TOI_DA) {
+                $theo[] = $ten;
+                // Het chan khi lan sai thu SO_LAN_SAI_TOI_DA tinh tu moi nhat ra khoi cua so
+                $cho = max($cho, self::CUA_SO_GIAY - $tuoi[self::SO_LAN_SAI_TOI_DA - 1]);
+            }
+        }
+
+        if ($theo) {
+            $this->ghiNhatKy(
+                $nguoiDungId,
+                'LOGIN_BLOCKED',
+                'Chan dang nhap: sai ' . self::SO_LAN_SAI_TOI_DA . ' lan trong ' . (self::CUA_SO_GIAY / 60) . ' phut theo ' . implode(' va ', $theo) . ' (' . mb_substr($tenDangNhap, 0, 50) . ')',
+                $diaChiIp
+            );
+
+            throw new TooManyRequestsException('Dang nhap sai qua nhieu lan, vui long thu lai sau ' . max(1, (int) ceil($cho / 60)) . ' phut', $cho);
+        }
     }
 
     private function ghiNhatKy(?int $nguoiDungId, string $hanhDong, string $chiTiet, ?string $diaChiIp): void
