@@ -38,6 +38,21 @@ class NguoiDungRepository extends BaseRepository
         return $row ?: null;
     }
 
+    /** Ma cac tai khoan dang hoat dong co mot vai tro (vi du gui thong bao cho moi thu ky khoa) */
+    public function findIdTheoVaiTro(string $tenVaiTro): array
+    {
+        $rows = $this->db->table('nguoi_dung nd')
+            ->select('nd.id')
+            ->join('nguoi_dung_vai_tro ndvt', 'ndvt.nguoi_dung_id = nd.id')
+            ->join('vai_tro vt', 'vt.id = ndvt.vai_tro_id')
+            ->where('vt.ten_vai_tro', $tenVaiTro)
+            ->where('nd.bi_khoa', 0)
+            ->get()
+            ->getResultArray();
+
+        return array_map('intval', array_column($rows, 'id'));
+    }
+
     public function findByEmail(string $email): ?array
     {
         $row = $this->db->table('nguoi_dung')

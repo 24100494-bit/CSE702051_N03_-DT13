@@ -253,7 +253,7 @@
                 return;
             }
             oLoi.textContent = '';
-            oThongTin.textContent = 'Trang ' + kq.data.page + '/' + kq.data.total_pages + ' · ' + kq.data.total + ' đề tài';
+            oThongTin.textContent = Number(kq.data.total) ? 'Trang ' + kq.data.page + '/' + kq.data.total_pages + ' · ' + kq.data.total + ' đề tài' : '';
 
             if (!kq.data.items.length) {
                 ds.append(tao('p', { class: 'phu', text: 'Không tìm thấy đề tài phù hợp.' }));
@@ -591,7 +591,7 @@
                 return;
             }
             oLoi.textContent = '';
-            oThongTin.textContent = 'Trang ' + kq.data.page + '/' + kq.data.total_pages + ' · ' + kq.data.total + ' bản ghi';
+            oThongTin.textContent = Number(kq.data.total) ? 'Trang ' + kq.data.page + '/' + kq.data.total_pages + ' · ' + kq.data.total + ' bản ghi' : '';
 
             if (!kq.data.items.length) {
                 ds.append(tao('p', { class: 'phu', text: 'Không có nhật ký phù hợp.' }));
@@ -762,6 +762,7 @@
             Object.entries(TEN_VAI_TRO).map(([ma, ten]) => tao('option', { value: ma, text: ten })));
         const vungBang = tao('div', { class: 'cuon-ngang' });
         const phanTrang = tao('div', { class: 'hang' });
+        const oMa = tao('div', { class: 'o-ma-dat-lai', role: 'status', 'aria-live': 'polite' });
         let trang = 1;
         const formTk = tao('form', { class: 'luoi-form' },
             oNhap('Tên đăng nhập', 'ten_dang_nhap', { maxlength: 50, required: true }), oNhap('Mật khẩu', 'mat_khau', { type: 'password', minlength: 8, maxlength: 72, required: true, autocomplete: 'new-password' }),
@@ -774,7 +775,17 @@
             thucHien(formTk.querySelector('button'), oLoi, () => goi('POST', '/nguoi-dung', f), async () => { formTk.reset(); await taiDs(); });
         });
         the.append(tao('div', { class: 'hang' }, tuKhoa, locVaiTro, tao('button', { type: 'button', text: 'Tìm', onclick: () => { trang = 1; taiDs(); } })),
-            vungBang, phanTrang, tao('h3', { text: 'Tạo tài khoản' }), formTk, oLoi);
+            vungBang, phanTrang, oMa, tao('h3', { text: 'Tạo tài khoản' }), formTk, oLoi);
+
+        // F1.3: thu ky kiem dung nguoi roi cap ma dat lai mot lan; ma chi hien mot lan tren man hinh nay
+        async function capMa(nut, nd) {
+            if (!window.confirm('Cấp mã đặt lại mật khẩu cho ' + nd.ten_dang_nhap + '? Chỉ cấp sau khi đã kiểm đúng người.')) return;
+            const kq = await thucHien(nut, oLoi, () => goi('POST', '/nguoi-dung/' + nd.id + '/ma-dat-lai'));
+            if (!kq.ok) return;
+            oMa.replaceChildren(
+                tao('p', {}, 'Mã đặt lại cho ', tao('strong', { text: kq.data.ten_dang_nhap }), ': ', tao('strong', { class: 'ma', text: kq.data.ma })),
+                tao('p', { class: 'phu', text: 'Hết hạn lúc ' + thoiGian(kq.data.het_han) + ' (' + kq.data.hieu_luc_phut + ' phút), dùng một lần. Mã chỉ hiện một lần, hãy đọc trực tiếp cho người dùng.' }));
+        }
 
         async function taiDs() {
             const q = new URLSearchParams({ page: trang, size: 20 });
@@ -795,9 +806,10 @@
                     tao('td', {}, tao('button', {
                         type: 'button', class: nd.bi_khoa ? '' : 'nut-nguy', text: nd.bi_khoa ? 'Mở khóa' : 'Khóa',
                         onclick: (e) => thucHien(e.target, oLoi, () => goi('PATCH', '/nguoi-dung/' + nd.id + '/trang-thai', { khoa: !nd.bi_khoa }), taiDs),
-                    }))));
+                    })),
+                    tao('td', {}, tao('button', { type: 'button', class: 'nut-phu', text: 'Cấp mã', 'aria-label': 'Cấp mã đặt lại mật khẩu cho ' + nd.ten_dang_nhap, onclick: (e) => capMa(e.target, nd) }))));
             });
-            vungBang.append(tao('table', {}, tao('thead', {}, tao('tr', {}, ['Mã', 'Tên đăng nhập', 'Họ tên', 'Email', 'Vai trò', 'Trạng thái'].map((t) => tao('th', { text: t })))), than));
+            vungBang.append(tao('table', {}, tao('thead', {}, tao('tr', {}, ['Mã', 'Tên đăng nhập', 'Họ tên', 'Email', 'Vai trò', 'Trạng thái', 'Đặt lại mật khẩu'].map((t) => tao('th', { text: t })))), than));
             const soTrang = Math.max(1, Math.ceil(kq.data.total / kq.data.size));
             phanTrang.append(
                 tao('button', { type: 'button', class: 'nut-phu', text: 'Trang trước', disabled: trang <= 1, onclick: () => { trang -= 1; taiDs(); } }),

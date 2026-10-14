@@ -93,7 +93,10 @@ paths:
     post:
       tags: [Người dùng và xác thực]
       summary: Khôi phục mật khẩu – gửi yêu cầu (YCCN-04)
-      description: Phản hồi giống nhau dù email có tồn tại hay không (rủi ro BM10).
+      description: >
+        Phản hồi giống nhau dù email có tồn tại hay không (rủi ro BM10). Máy chủ không gửi được email nên
+        hệ thống gửi thông báo cho thư ký khoa (tối đa 3 lần mỗi giờ cho một tài khoản); thư ký kiểm tra
+        đúng người rồi cấp mã đặt lại qua POST /nguoi-dung/{id}/ma-dat-lai.
       security: []
       requestBody:
         required: true
@@ -106,11 +109,16 @@ paths:
                 email: { type: string, format: email }
       responses:
         '200': { $ref: '#/components/responses/ThanhCong' }
+        '422': { $ref: '#/components/responses/SaiDuLieu' }
 
   /auth/dat-lai-mat-khau:
     post:
       tags: [Người dùng và xác thực]
       summary: Khôi phục mật khẩu – đặt lại (YCCN-04)
+      description: >
+        Mã đặt lại do thư ký khoa cấp, 8 ký tự dạng XXXX-XXXX (không phân biệt hoa thường, bỏ qua dấu gạch),
+        hết hạn sau 15 phút, dùng một lần; cấp mã mới thì mã cũ hết hiệu lực. CSDL chỉ lưu SHA-256 của mã.
+        Nhập sai 5 lần trong 15 phút từ một địa chỉ IP thì trả 429.
       security: []
       requestBody:
         required: true
@@ -120,11 +128,12 @@ paths:
               type: object
               required: [token, mat_khau_moi]
               properties:
-                token: { type: string, description: Token gửi qua email, hết hạn ngắn }
-                mat_khau_moi: { type: string, minLength: 8 }
+                token: { type: string, maxLength: 20, description: Mã đặt lại do thư ký khoa cấp, hết hạn sau 15 phút }
+                mat_khau_moi: { type: string, minLength: 8, maxLength: 72 }
       responses:
         '200': { $ref: '#/components/responses/ThanhCong' }
         '422': { $ref: '#/components/responses/SaiDuLieu' }
+        '429': { $ref: '#/components/responses/VuotTanSuat' }
 
   /nguoi-dung/toi:
     get:
@@ -250,6 +259,34 @@ paths:
         '403': { $ref: '#/components/responses/KhongDuQuyen' }
         '404': { $ref: '#/components/responses/KhongTimThay' }
         '422': { $ref: '#/components/responses/SaiDuLieu' }
+
+  /nguoi-dung/{id}/ma-dat-lai:
+    post:
+      tags: [Người dùng và xác thực]
+      summary: Cấp mã đặt lại mật khẩu một lần (YCCN-04, qua F1.6)
+      description: >
+        Chỉ vai trò THU_KY_KHOA, sau khi đã kiểm đúng người gửi yêu cầu quên mật khẩu. Mã chỉ trả về một lần
+        trong phản hồi này, không ghi vào nhật ký. Ghi nhật ký RESET_CODE_ISSUED.
+      parameters: [ { $ref: '#/components/parameters/Id' } ]
+      responses:
+        '201':
+          description: Đã cấp mã
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      nguoi_dung_id: { type: integer }
+                      ten_dang_nhap: { type: string }
+                      ma: { type: string, example: 'K7Q2-M9XA' }
+                      het_han: { type: string, format: date-time }
+                      hieu_luc_phut: { type: integer, example: 15 }
+        '401': { $ref: '#/components/responses/ChuaXacThuc' }
+        '403': { $ref: '#/components/responses/KhongDuQuyen' }
+        '404': { $ref: '#/components/responses/KhongTimThay' }
 
   /public/de-tai:
     get:
@@ -919,9 +956,16 @@ paths:
     post:
       tags: [Tác vụ nội bộ]
       summary: Sinh thông báo nhắc hạn (YCCN-15)
-      description: Điểm cuối nội bộ, không gọi từ giao diện người dùng.
+      description: >
+        Điểm cuối nội bộ, không gọi từ giao diện người dùng: chỉ chạy khi header X-Khoa-Noi-Bo trùng khóa bí mật
+        noibo.khoa trong .env của máy chủ. Nhắc mọi thành viên của đề tài đã duyệt hoặc đang thực hiện có mốc
+        hết hạn trong 48 giờ tới mà chưa nộp; mỗi người chỉ nhận một lần cho mỗi cặp đề tài – mốc. Máy chủ không
+        có lịch chạy định kỳ nên nhắc hạn còn được kích hoạt khi sinh viên mở GET /thong-bao.
+      security:
+        - khoaNoiBo: []
       responses:
         '200': { $ref: '#/components/responses/ThanhCong' }
+        '401': { $ref: '#/components/responses/ChuaXacThuc' }
         '403': { $ref: '#/components/responses/KhongDuQuyen' }
 
 components:
@@ -931,6 +975,11 @@ components:
       in: cookie
       name: ci_session
       description: Cookie phiên có HttpOnly, Secure, SameSite=Lax (rủi ro BM7)
+    khoaNoiBo:
+      type: apiKey
+      in: header
+      name: X-Khoa-Noi-Bo
+      description: Khóa bí mật cho điểm cuối nội bộ, chỉ đặt trong .env của máy chủ (noibo.khoa)
 
   parameters:
     Id:
