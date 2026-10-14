@@ -47,6 +47,56 @@ class DiemNghiemThuRepository extends BaseRepository
             ->countAllResults() > 0;
     }
 
+    /**
+     * Thong ke diem cho nhieu de tai trong mot truy van, tranh N+1 o danh sach ho so.
+     * Ket qua duoc danh chi muc theo de_tai_id.
+     *
+     * @param list<int> $deTaiIds
+     * @return array<int, array{so_luot_cham:int, diem_trung_binh:float|null}>
+     */
+    public function thongKeTheoNhieuDeTai(array $deTaiIds): array
+    {
+        $deTaiIds = array_values(array_unique(array_filter(array_map('intval', $deTaiIds), static fn ($id) => $id > 0)));
+        if ($deTaiIds === []) {
+            return [];
+        }
+
+        $rows = $this->db->table('diem_nghiem_thu')
+            ->select('de_tai_id, COUNT(*) AS so_luot_cham, ROUND(AVG(diem), 2) AS diem_trung_binh')
+            ->whereIn('de_tai_id', $deTaiIds)
+            ->groupBy('de_tai_id')
+            ->get()
+            ->getResultArray();
+
+        $ketQua = [];
+        foreach ($rows as $row) {
+            $ketQua[(int) $row['de_tai_id']] = [
+                'so_luot_cham' => (int) $row['so_luot_cham'],
+                'diem_trung_binh' => $row['diem_trung_binh'] === null ? null : (float) $row['diem_trung_binh'],
+            ];
+        }
+
+        return $ketQua;
+    }
+
+    /** Tra ve cac de tai ma mot thanh vien hoi dong da cham, trong mot truy van. */
+    public function cacDeTaiDaCham(array $deTaiIds, int $hoiDongId): array
+    {
+        $deTaiIds = array_values(array_unique(array_filter(array_map('intval', $deTaiIds), static fn ($id) => $id > 0)));
+        if ($deTaiIds === [] || $hoiDongId <= 0) {
+            return [];
+        }
+
+        $rows = $this->db->table('diem_nghiem_thu')
+            ->select('de_tai_id')
+            ->whereIn('de_tai_id', $deTaiIds)
+            ->where('hoi_dong_id', $hoiDongId)
+            ->get()
+            ->getResultArray();
+
+        return array_values(array_unique(array_map('intval', array_column($rows, 'de_tai_id'))));
+    }
+
     /** So luot cham va diem trung binh (lam tron 2 chu so) cua mot de tai */
     public function thongKe(int $deTaiId): array
     {

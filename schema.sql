@@ -156,6 +156,8 @@ CREATE TABLE `bao_cao_moc` (
   KEY `fk_baocao_moc` (`moc_thoi_gian_id`),
   -- Chỉ mục kết hợp phục vụ truy vấn "danh sách báo cáo của một đề tài theo trạng thái, mới nhất trước"
   KEY `idx_baocao_detai_trangthai_created` (`de_tai_id`, `trang_thai`, `created_at`),
+  -- Phuc vu truy van ban nop moi nhat theo tung moc cua mot de tai (Buoi 09)
+  KEY `idx_baocao_detai_moc_created_id` (`de_tai_id`, `moc_thoi_gian_id`, `created_at`, `id`),
   CONSTRAINT `fk_baocao_detai` FOREIGN KEY (`de_tai_id`)        REFERENCES `de_tai` (`id`)        ON DELETE CASCADE,
   CONSTRAINT `fk_baocao_moc`   FOREIGN KEY (`moc_thoi_gian_id`) REFERENCES `moc_thoi_gian` (`id`),
   CONSTRAINT `chk_baocao_trangthai` CHECK (`trang_thai` IN ('pending','approved','revision_requested','overdue'))

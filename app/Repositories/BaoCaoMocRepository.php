@@ -37,6 +37,47 @@ class BaoCaoMocRepository extends BaseRepository
         return $row ?: null;
     }
 
+    /**
+     * Lay ban nop moi nhat cua nhieu moc trong cung mot de tai bang mot truy van.
+     * Thu tu created_at/id giam dan dam bao dong dau tien moi moc la ban nop moi nhat.
+     *
+     * @param list<int> $mocThoiGianIds
+     * @return array<int, array> Chi muc theo moc_thoi_gian_id
+     */
+    public function findMoiNhatTheoNhieuMoc(int $deTaiId, array $mocThoiGianIds): array
+    {
+        $mocThoiGianIds = array_values(array_unique(array_filter(array_map('intval', $mocThoiGianIds), static fn ($id) => $id > 0)));
+        if ($deTaiId <= 0 || $mocThoiGianIds === []) {
+            return [];
+        }
+
+        $placeholders = implode(',', array_fill(0, count($mocThoiGianIds), '?'));
+        $sql = "SELECT b.*
+                  FROM bao_cao_moc b
+                 WHERE b.de_tai_id = ?
+                   AND b.moc_thoi_gian_id IN ($placeholders)
+                   AND NOT EXISTS (
+                       SELECT 1
+                         FROM bao_cao_moc b2
+                        WHERE b2.de_tai_id = b.de_tai_id
+                          AND b2.moc_thoi_gian_id = b.moc_thoi_gian_id
+                          AND (b2.created_at > b.created_at
+                               OR (b2.created_at = b.created_at AND b2.id > b.id))
+                   )
+                 ORDER BY b.created_at DESC, b.id DESC";
+        $rows = $this->db->query($sql, array_merge([$deTaiId], $mocThoiGianIds))->getResultArray();
+
+        $ketQua = [];
+        foreach ($rows as $row) {
+            $mocId = (int) $row['moc_thoi_gian_id'];
+            if (!isset($ketQua[$mocId])) {
+                $ketQua[$mocId] = $row;
+            }
+        }
+
+        return $ketQua;
+    }
+
     /** Doc va khoa dong bao cao trong giao dich */
     public function findByIdForUpdate(int $id): ?array
     {
