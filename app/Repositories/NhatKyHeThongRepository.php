@@ -16,6 +16,8 @@ class NhatKyHeThongRepository
     public function __construct(ConnectionInterface $db)
     {
         $this->db = $db;
+        // Nhu BaseRepository: dat mui gio phien theo ung dung de created_at hien va loc theo ngay dung gio Viet Nam
+        $this->db->query('SET time_zone = ?', [date('P')]);
     }
 
     public function ghiNhan(?int $nguoiDungId, string $hanhDong, ?string $chiTiet = null, ?string $diaChiIp = null): int
