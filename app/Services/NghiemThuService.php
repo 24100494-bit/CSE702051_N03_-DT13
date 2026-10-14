@@ -57,17 +57,41 @@ class NghiemThuService
         $this->workflow      = new TrangThaiWorkflow(DeTaiService::CHUYEN_TRANG_THAI);
     }
 
-    /** F4.1 - danh sach ho so du dieu kien / da nghiem thu, kem diem trung binh va viec toi da cham chua */
+    /**
+     * F4.1 - danh sach ho so du dieu kien / da nghiem thu.
+     * Cache ngan han theo nguoi dung va bo loc; truy van diem duoc gom theo lo de tranh N+1.
+     */
     public function danhSachHoSo(int $page, int $size, ?string $trangThai, array $currentUser): array
     {
-        $ketQua = $this->deTaiRepo->findTheoPhamVi($page, $size, $trangThai, null, null, DeTaiService::TRANG_THAI_HOI_DONG);
         $userId = (int) $currentUser['id'];
+        $version = (int) (cache()->get('nghiem_thu_danh_sach_version') ?? 1);
+        $cacheKey = 'nghiem_thu_danh_sach_' . hash('sha256', json_encode([
+            'version' => $version,
+            'user_id' => $userId,
+            'page' => $page,
+            'size' => $size,
+            'trang_thai' => $trangThai,
+        ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
+
+        $cached = cache()->get($cacheKey);
+        if (is_array($cached)) {
+            return $cached;
+        }
+
+        $ketQua = $this->deTaiRepo->findTheoPhamVi($page, $size, $trangThai, null, null, DeTaiService::TRANG_THAI_HOI_DONG);
+        $deTaiIds = array_values(array_map(static fn ($row) => (int) $row['id'], $ketQua['items']));
+        $thongKeTheoDeTai = $this->diemRepo->thongKeTheoNhieuDeTai($deTaiIds);
+        $daChamIds = array_fill_keys($this->diemRepo->cacDeTaiDaCham($deTaiIds, $userId), true);
 
         foreach ($ketQua['items'] as &$deTai) {
-            $deTai += $this->diemRepo->thongKe((int) $deTai['id']);
-            $deTai['toi_da_cham'] = $this->diemRepo->daCham((int) $deTai['id'], $userId);
+            $id = (int) $deTai['id'];
+            $deTai += $thongKeTheoDeTai[$id] ?? ['so_luot_cham' => 0, 'diem_trung_binh' => null];
+            $deTai['toi_da_cham'] = isset($daChamIds[$id]);
         }
         unset($deTai);
+
+        // TTL ngan de gioi han do tre neu mot luong nghiep vu khac cap nhat trang thai.
+        cache()->save($cacheKey, $ketQua, 10);
 
         return $ketQua;
     }
@@ -80,8 +104,11 @@ class NghiemThuService
         $gvhd = $deTai['gvhd_id'] ? $this->nguoiDungRepo->findById((int) $deTai['gvhd_id']) : null;
 
         $banNop = [];
-        foreach ($this->mocRepo->findByLopHocPhan((int) $deTai['lop_hoc_phan_id']) as $moc) {
-            $moiNhat = $this->baoCaoRepo->findMoiNhat($deTaiId, (int) $moc['id']);
+        $cacMoc = $this->mocRepo->findByLopHocPhan((int) $deTai['lop_hoc_phan_id']);
+        $mocIds = array_map(static fn ($moc) => (int) $moc['id'], $cacMoc);
+        $banNopMoiNhatTheoMoc = $this->baoCaoRepo->findMoiNhatTheoNhieuMoc($deTaiId, $mocIds);
+        foreach ($cacMoc as $moc) {
+            $moiNhat = $banNopMoiNhatTheoMoc[(int) $moc['id']] ?? null;
             $banNop[] = [
                 'moc_thoi_gian_id' => (int) $moc['id'],
                 'ten_moc'          => $moc['ten_moc'],
@@ -145,6 +172,7 @@ class NghiemThuService
             $this->nhatKyRepo->ghiNhan($userId, 'GRADE_TOPIC', 'Cham nghiem thu de tai ID: ' . $deTaiId . ' - diem ' . round($diem, 2), $currentUser['ip'] ?? null);
 
             $this->deTaiRepo->transCommit();
+            $this->tangPhienBanCacheDanhSach();
         } catch (DatabaseException $e) {
             $this->deTaiRepo->transRollback();
             // Lop chan cuoi: UNIQUE (de_tai_id, hoi_dong_id) bat trung khi Service bi bo qua
@@ -235,6 +263,7 @@ class NghiemThuService
             }
 
             $this->deTaiRepo->transCommit();
+            $this->tangPhienBanCacheDanhSach();
         } catch (Throwable $e) {
             $this->deTaiRepo->transRollback();
             throw $e;
@@ -255,6 +284,13 @@ class NghiemThuService
         }
 
         return $deTai;
+    }
+
+    /** Doi phien ban cache de cac trang danh sach khong dung ket qua truoc khi cham/chot diem. */
+    private function tangPhienBanCacheDanhSach(): void
+    {
+        $version = (int) (cache()->get('nghiem_thu_danh_sach_version') ?? 1);
+        cache()->save('nghiem_thu_danh_sach_version', $version + 1, 86400);
     }
 
     private function coVaiTro(array $currentUser, string $vaiTro): bool
