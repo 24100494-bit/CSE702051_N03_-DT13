@@ -3,12 +3,15 @@
 namespace App\Services;
 
 use App\Exceptions\ApiException;
+use App\Exceptions\NotFoundException;
 use App\Exceptions\TooManyRequestsException;
 use App\Exceptions\UnauthenticatedException;
 use App\Exceptions\ValidationException;
 use App\Repositories\GioiHanDangNhapRepository;
+use App\Repositories\MaDatLaiRepository;
 use App\Repositories\NguoiDungRepository;
 use App\Repositories\NhatKyHeThongRepository;
+use App\Repositories\ThongBaoRepository;
 use Throwable;
 
 /**
@@ -17,6 +20,8 @@ use Throwable;
  * Dang nhap thanh cong/that bai, dang xuat, doi mat khau duoc ghi nhat ky he thong (khoi K8); khong bao gio ghi mat khau.
  * Chong do mat khau (BM10): sai SO_LAN_SAI_TOI_DA lan trong CUA_SO_GIAY giay thi lan sau tra 429,
  * dem rieng theo dia chi IP va theo tai khoan; lan bi chan ghi LOGIN_BLOCKED.
+ * Khoi phuc mat khau (K1, F1.3): may chu khong gui duoc email nen nguoi dung gui yeu cau, thu ky khoa
+ * kiem danh tinh roi cap ma dat lai mot lan (het han sau MA_DAT_LAI_PHUT phut), nguoi dung nhap ma de dat mat khau moi.
  */
 class XacThucService
 {
@@ -24,6 +29,13 @@ class XacThucService
 
     public const SO_LAN_SAI_TOI_DA = 5;
     public const CUA_SO_GIAY       = 900;
+
+    public const MA_DAT_LAI_PHUT            = 15;
+    public const SO_YEU_CAU_DAT_LAI_MOI_GIO = 3;
+
+    /** Bo ky tu cua ma dat lai: bo 0/O, 1/I/L de doc cho nhau khong nham */
+    private const KY_TU_MA = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+    private const DO_DAI_MA = 8;
 
     /**
      * Ma bam gia de van chay password_verify khi ten dang nhap khong ton tai,
@@ -34,15 +46,122 @@ class XacThucService
     protected NguoiDungRepository $repo;
     protected ?NhatKyHeThongRepository $nhatKyRepo;
     protected ?GioiHanDangNhapRepository $gioiHanRepo;
+    protected ?MaDatLaiRepository $maDatLaiRepo;
+    protected ?ThongBaoRepository $thongBaoRepo;
 
     public function __construct(
         NguoiDungRepository $repo,
         ?NhatKyHeThongRepository $nhatKyRepo = null,
-        ?GioiHanDangNhapRepository $gioiHanRepo = null
+        ?GioiHanDangNhapRepository $gioiHanRepo = null,
+        ?MaDatLaiRepository $maDatLaiRepo = null,
+        ?ThongBaoRepository $thongBaoRepo = null
     ) {
-        $this->repo        = $repo;
-        $this->nhatKyRepo  = $nhatKyRepo;
-        $this->gioiHanRepo = $gioiHanRepo;
+        $this->repo         = $repo;
+        $this->nhatKyRepo   = $nhatKyRepo;
+        $this->gioiHanRepo  = $gioiHanRepo;
+        $this->maDatLaiRepo = $maDatLaiRepo;
+        $this->thongBaoRepo = $thongBaoRepo;
+    }
+
+    /**
+     * F1.3 buoc 1 - nguoi dung bao quen mat khau. Phan hoi o Controller luon giong nhau du email co ton tai hay khong.
+     * Email co that: bao cho moi thu ky khoa (toi da SO_YEU_CAU_DAT_LAI_MOI_GIO lan moi gio de khong bi spam).
+     */
+    public function quenMatKhau(string $email, ?string $diaChiIp = null): void
+    {
+        $nguoiDung = $this->repo->findByEmail($email);
+
+        if (! $nguoiDung) {
+            $this->ghiNhatKy(null, 'RESET_PASSWORD_REQUEST', 'Yeu cau dat lai mat khau cho email khong ton tai', $diaChiIp);
+
+            return;
+        }
+
+        $id = (int) $nguoiDung['id'];
+        if ($this->gioiHanRepo !== null
+            && $this->gioiHanRepo->demTheoHanhDongVaNguoiDung('RESET_PASSWORD_REQUEST', $id, 3600) >= self::SO_YEU_CAU_DAT_LAI_MOI_GIO) {
+            return;
+        }
+
+        $this->ghiNhatKy($id, 'RESET_PASSWORD_REQUEST', 'Yeu cau dat lai mat khau', $diaChiIp);
+
+        if ($this->thongBaoRepo !== null) {
+            foreach ($this->repo->findIdTheoVaiTro('THU_KY_KHOA') as $thuKyId) {
+                $this->thongBaoRepo->create([
+                    'nguoi_dung_id' => $thuKyId,
+                    'tieu_de'       => 'Yêu cầu đặt lại mật khẩu',
+                    'noi_dung'      => 'Tài khoản ' . $nguoiDung['ten_dang_nhap'] . ' (' . $nguoiDung['ho_ten'] . ', ' . $nguoiDung['email'] . ', mã ' . $id
+                        . ') gửi yêu cầu đặt lại mật khẩu. Kiểm tra đúng người rồi cấp mã đặt lại ở khối Tài khoản người dùng.',
+                ]);
+            }
+        }
+    }
+
+    /** F1.3 buoc 2 (F1.6) - thu ky khoa cap ma dat lai mot lan; ma chi tra ve mot lan, CSDL chi luu ban bam */
+    public function capMaDatLai(int $id, array $currentUser): array
+    {
+        $nguoiDung = $this->repo->findById($id);
+        if (! $nguoiDung) {
+            throw new NotFoundException('Khong tim thay nguoi dung');
+        }
+
+        $ma = '';
+        for ($i = 0; $i < self::DO_DAI_MA; $i++) {
+            $ma .= self::KY_TU_MA[random_int(0, strlen(self::KY_TU_MA) - 1)];
+        }
+        $hetHan = $this->maDatLaiRepo->taoMa($id, hash('sha256', $ma), self::MA_DAT_LAI_PHUT, (int) $currentUser['id']);
+
+        $this->ghiNhatKy((int) $currentUser['id'], 'RESET_CODE_ISSUED', 'Cap ma dat lai mat khau cho nguoi dung ID: ' . $id . ', het han ' . $hetHan, $currentUser['ip'] ?? null);
+
+        return [
+            'nguoi_dung_id' => $id,
+            'ten_dang_nhap' => $nguoiDung['ten_dang_nhap'],
+            'ma'            => substr($ma, 0, 4) . '-' . substr($ma, 4),
+            'het_han'       => $hetHan,
+            'hieu_luc_phut' => self::MA_DAT_LAI_PHUT,
+        ];
+    }
+
+    /**
+     * F1.3 buoc 3 - dat mat khau moi bang ma. Ma dung mot lan; sai SO_LAN_SAI_TOI_DA lan trong CUA_SO_GIAY giay
+     * tu mot dia chi IP thi tra 429 (chong do ma).
+     */
+    public function datLaiMatKhau(string $maNhap, string $matKhauMoi, ?string $diaChiIp = null): void
+    {
+        if ($this->gioiHanRepo !== null && $diaChiIp !== null && $diaChiIp !== '') {
+            $tuoi = $this->gioiHanRepo->tuoiTheoHanhDongVaIp('RESET_PASSWORD_FAILED', $diaChiIp, self::CUA_SO_GIAY);
+            if (count($tuoi) >= self::SO_LAN_SAI_TOI_DA) {
+                $cho = self::CUA_SO_GIAY - $tuoi[self::SO_LAN_SAI_TOI_DA - 1];
+
+                throw new TooManyRequestsException('Nhap sai ma qua nhieu lan, vui long thu lai sau ' . max(1, (int) ceil($cho / 60)) . ' phut', $cho);
+            }
+        }
+
+        $ma = strtoupper((string) preg_replace('/[^A-Za-z0-9]/', '', $maNhap));
+
+        $this->repo->transBegin();
+        try {
+            $ban = strlen($ma) === self::DO_DAI_MA ? $this->maDatLaiRepo->timMaConHieuLucForUpdate(hash('sha256', $ma)) : null;
+            if ($ban === null) {
+                $this->repo->transRollback();
+                $this->ghiNhatKy(null, 'RESET_PASSWORD_FAILED', 'Ma dat lai khong dung hoac da het han', $diaChiIp);
+
+                throw new ValidationException([['field' => 'token', 'issue' => 'Ma dat lai khong dung hoac da het han']]);
+            }
+
+            $nguoiDungId = (int) $ban['nguoi_dung_id'];
+            $this->repo->updateMatKhauHash($nguoiDungId, password_hash($matKhauMoi, PASSWORD_BCRYPT, ['cost' => self::BCRYPT_COST]));
+            $this->maDatLaiRepo->huyMaCuaNguoiDung($nguoiDungId);
+            $this->repo->transCommit();
+        } catch (ApiException $e) {
+            throw $e;
+        } catch (Throwable $e) {
+            $this->repo->transRollback();
+
+            throw $e;
+        }
+
+        $this->ghiNhatKy($nguoiDungId, 'RESET_PASSWORD', 'Dat lai mat khau bang ma mot lan', $diaChiIp);
     }
 
     /**

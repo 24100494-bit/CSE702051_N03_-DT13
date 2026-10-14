@@ -20,6 +20,10 @@ $routes->group('api/v1', static function ($routes) {
     $routes->post('auth/dang-nhap', 'XacThucController::dangNhap');
     $routes->post('auth/dang-xuat', 'XacThucController::dangXuat', ['filter' => 'quyen']);
 
+    // Khoi phuc mat khau (F1.3): khach gui yeu cau, thu ky khoa cap ma mot lan, khach nhap ma va mat khau moi
+    $routes->post('auth/quen-mat-khau', 'XacThucController::quenMatKhau');
+    $routes->post('auth/dat-lai-mat-khau', 'XacThucController::datLaiMatKhau');
+
     $routes->get('nguoi-dung/toi', 'XacThucController::toi', ['filter' => 'quyen:F1.5']);
     $routes->patch('nguoi-dung/toi', 'XacThucController::capNhatToi', ['filter' => 'quyen:F1.5']);
     $routes->patch('nguoi-dung/toi/mat-khau', 'XacThucController::doiMatKhau', ['filter' => 'quyen:F1.4']);
@@ -29,6 +33,7 @@ $routes->group('api/v1', static function ($routes) {
     $routes->post('nguoi-dung', 'NguoiDungController::create', ['filter' => 'quyen:F1.6']);
     $routes->get('nguoi-dung/(:num)', 'NguoiDungController::show/$1', ['filter' => 'quyen:F1.6']);
     $routes->patch('nguoi-dung/(:num)/trang-thai', 'NguoiDungController::capNhatTrangThai/$1', ['filter' => 'quyen:F1.6']);
+    $routes->post('nguoi-dung/(:num)/ma-dat-lai', 'NguoiDungController::maDatLai/$1', ['filter' => 'quyen:F1.6']);
 
     $routes->get('de-tai', 'DeTaiController::index', ['filter' => 'quyen:F2.9']);
     $routes->get('de-tai/(:num)', 'DeTaiController::show/$1', ['filter' => 'quyen:F2.3']);
@@ -83,5 +88,8 @@ $routes->group('api/v1', static function ($routes) {
     $routes->get('nhat-ky-he-thong', 'NhatKyHeThongController::index', ['filter' => 'quyen:F5.3']);
 
     $routes->get('thong-bao', 'ThongBaoController::index', ['filter' => 'quyen:F6.1']);
+
+    // Tac vu noi bo (F6.3): chi chay khi co khoa bi mat noibo.khoa, khong vai tro nguoi dung nao goi duoc
+    $routes->post('internal/thong-bao/nhac-han', 'NoiBoController::nhacHan', ['filter' => 'noibo']);
     $routes->patch('thong-bao/(:num)/da-doc', 'ThongBaoController::daDoc/$1', ['filter' => 'quyen:F6.2']);
 });

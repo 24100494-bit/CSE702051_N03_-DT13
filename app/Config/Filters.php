@@ -2,6 +2,7 @@
 
 namespace Config;
 
+use App\Filters\KhoaNoiBoFilter;
 use App\Filters\KiemNguonFilter;
 use App\Filters\PhanQuyenFilter;
 use App\Filters\TieuDeBaoMatFilter;
@@ -40,6 +41,7 @@ class Filters extends BaseFilters
         'quyen'         => PhanQuyenFilter::class,
         'kiemnguon'     => KiemNguonFilter::class,
         'tieudebaomat'  => TieuDeBaoMatFilter::class,
+        'noibo'         => KhoaNoiBoFilter::class,
     ];
 
     /**

@@ -6,8 +6,10 @@ use App\Exceptions\ApiException;
 use App\Exceptions\TooManyRequestsException;
 use App\Exceptions\ValidationException;
 use App\Repositories\GioiHanDangNhapRepository;
+use App\Repositories\MaDatLaiRepository;
 use App\Repositories\NguoiDungRepository;
 use App\Repositories\NhatKyHeThongRepository;
+use App\Repositories\ThongBaoRepository;
 use App\Services\XacThucService;
 use CodeIgniter\HTTP\Exceptions\HTTPException;
 use Config\Database;
@@ -175,11 +177,63 @@ class XacThucController extends BaseController
         }
     }
 
+    /** POST /api/v1/auth/quen-mat-khau {email} - F1.3; phan hoi giong nhau du email co ton tai hay khong */
+    public function quenMatKhau()
+    {
+        try {
+            $email = trim((string) ($this->docThan()['email'] ?? ''));
+            if (! filter_var($email, FILTER_VALIDATE_EMAIL) || mb_strlen($email) > 100) {
+                throw new ValidationException([['field' => 'email', 'issue' => 'Email khong hop le']]);
+            }
+
+            $this->service()->quenMatKhau($email, $this->request->getIPAddress());
+
+            return $this->respondSuccess(['thong_bao' => 'Nếu email có trong hệ thống, thư ký khoa sẽ liên hệ để cấp mã đặt lại mật khẩu (hiệu lực ' . XacThucService::MA_DAT_LAI_PHUT . ' phút).']);
+        } catch (ApiException $e) {
+            return $this->respondError($e);
+        }
+    }
+
+    /** POST /api/v1/auth/dat-lai-mat-khau {token, mat_khau_moi} - F1.3; token la ma thu ky khoa cap */
+    public function datLaiMatKhau()
+    {
+        try {
+            $input  = $this->docThan();
+            $token  = trim((string) ($input['token'] ?? ''));
+            $matMoi = (string) ($input['mat_khau_moi'] ?? '');
+
+            $loi = [];
+            if ($token === '' || mb_strlen($token) > 20) {
+                $loi[] = ['field' => 'token', 'issue' => 'Bat buoc nhap ma dat lai'];
+            }
+            if (strlen($matMoi) < 8 || strlen($matMoi) > 72) {
+                $loi[] = ['field' => 'mat_khau_moi', 'issue' => 'Tu 8 den 72 ky tu'];
+            }
+            if ($loi) {
+                throw new ValidationException($loi);
+            }
+
+            $this->service()->datLaiMatKhau($token, $matMoi, $this->request->getIPAddress());
+
+            return $this->respondSuccess(['da_dat_lai' => true]);
+        } catch (TooManyRequestsException $e) {
+            return $this->respondError($e)->setHeader('Retry-After', (string) $e->getRetryAfter());
+        } catch (ApiException $e) {
+            return $this->respondError($e);
+        }
+    }
+
     private function service(): XacThucService
     {
         $db = Database::connect();
 
-        return new XacThucService(new NguoiDungRepository($db), new NhatKyHeThongRepository($db), new GioiHanDangNhapRepository($db));
+        return new XacThucService(
+            new NguoiDungRepository($db),
+            new NhatKyHeThongRepository($db),
+            new GioiHanDangNhapRepository($db),
+            new MaDatLaiRepository($db),
+            new ThongBaoRepository($db)
+        );
     }
 
     /** Nhan ca JSON lan form; JSON hong tra 422 thay vi de loi 500 */

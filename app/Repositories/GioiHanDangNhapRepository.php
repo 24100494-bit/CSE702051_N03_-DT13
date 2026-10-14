@@ -38,10 +38,31 @@ class GioiHanDangNhapRepository
                  WHERE f.hanh_dong = 'LOGIN_FAILED' AND f.nguoi_dung_id = ?
                    AND f.created_at >= NOW() - INTERVAL ? SECOND
                    AND NOT EXISTS (SELECT 1 FROM nhat_ky_he_thong s
-                                    WHERE s.hanh_dong = 'LOGIN_SUCCESS' AND s.nguoi_dung_id = ? AND s.id > f.id)
+                                    WHERE s.hanh_dong IN ('LOGIN_SUCCESS', 'RESET_PASSWORD') AND s.nguoi_dung_id = ? AND s.id > f.id)
                  ORDER BY f.created_at DESC, f.id DESC";
 
         return array_map('intval', array_column($this->db->query($sql, [$nguoiDungId, $giay, $nguoiDungId])->getResultArray(), 'tuoi'));
+    }
+
+    /** Cac lan ghi mot hanh dong (vi du RESET_PASSWORD_FAILED) tu mot dia chi IP trong $giay giay gan nhat */
+    public function tuoiTheoHanhDongVaIp(string $hanhDong, string $diaChiIp, int $giay): array
+    {
+        $sql = "SELECT TIMESTAMPDIFF(SECOND, created_at, NOW()) AS tuoi
+                  FROM nhat_ky_he_thong
+                 WHERE hanh_dong = ? AND dia_chi_ip = ?
+                   AND created_at >= NOW() - INTERVAL ? SECOND
+                 ORDER BY created_at DESC, id DESC";
+
+        return array_map('intval', array_column($this->db->query($sql, [$hanhDong, $diaChiIp, $giay])->getResultArray(), 'tuoi'));
+    }
+
+    /** So lan ghi mot hanh dong cua mot nguoi dung trong $giay giay gan nhat */
+    public function demTheoHanhDongVaNguoiDung(string $hanhDong, int $nguoiDungId, int $giay): int
+    {
+        $sql = 'SELECT COUNT(*) AS so FROM nhat_ky_he_thong
+                 WHERE hanh_dong = ? AND nguoi_dung_id = ? AND created_at >= NOW() - INTERVAL ? SECOND';
+
+        return (int) $this->db->query($sql, [$hanhDong, $nguoiDungId, $giay])->getRow()->so;
     }
 
     /** Cac lan sai voi mot ten dang nhap khong ton tai (khop dung chi tiet da ghi) trong $giay giay gan nhat */
