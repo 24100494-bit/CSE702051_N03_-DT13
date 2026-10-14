@@ -46,6 +46,6 @@
     </section>
 </main>
 
-<script src="/assets/trang-chu.js?v=20261009"></script>
+<script src="/assets/trang-chu.js?v=20261014"></script>
 </body>
 </html>

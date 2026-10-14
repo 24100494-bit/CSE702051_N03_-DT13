@@ -24,3 +24,11 @@ button:disabled { background: #6b7280; cursor: wait; }
 .thong-tin { margin: 20px 0 4px; display: grid; grid-template-columns: 120px 1fr; row-gap: 10px; font-size: 15px; }
 .thong-tin dt { color: #4b5563; }
 .thong-tin dd { margin: 0; }
+h2 { font-size: 18px; margin: 0 0 6px; color: #1e3a8a; }
+.lien-ket { margin: 14px 0 0; text-align: center; }
+.nut-chu {
+    width: auto; margin: 0; padding: 4px 6px; background: none; color: #1d4ed8; font-weight: 600; text-decoration: underline;
+}
+.nut-chu:hover { background: none; color: #1e3a8a; }
+.buoc { margin-top: 28px; }
+.dat { color: #15803d; }

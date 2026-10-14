@@ -4,9 +4,13 @@ namespace App\Controllers;
 
 use App\Exceptions\ApiException;
 use App\Exceptions\ValidationException;
+use App\Repositories\GioiHanDangNhapRepository;
+use App\Repositories\MaDatLaiRepository;
 use App\Repositories\NguoiDungRepository;
 use App\Repositories\NhatKyHeThongRepository;
+use App\Repositories\ThongBaoRepository;
 use App\Services\NguoiDungService;
+use App\Services\XacThucService;
 use Config\Database;
 
 /**
@@ -108,6 +112,25 @@ class NguoiDungController extends BaseController
             }
 
             return $this->respondSuccess($this->service()->capNhatTrangThai($id, $khoa, $vaiTro, $this->nguoiDungHienTai()));
+        } catch (ApiException $e) {
+            return $this->respondError($e);
+        }
+    }
+
+    /** POST /api/v1/nguoi-dung/{id}/ma-dat-lai - thu ky khoa cap ma dat lai mat khau mot lan (F1.3 qua F1.6) */
+    public function maDatLai($id = null)
+    {
+        try {
+            $db      = Database::connect();
+            $service = new XacThucService(
+                new NguoiDungRepository($db),
+                new NhatKyHeThongRepository($db),
+                new GioiHanDangNhapRepository($db),
+                new MaDatLaiRepository($db),
+                new ThongBaoRepository($db)
+            );
+
+            return $this->respondSuccess($service->capMaDatLai($this->layId($id), $this->nguoiDungHienTai()), 201);
         } catch (ApiException $e) {
             return $this->respondError($e);
         }
