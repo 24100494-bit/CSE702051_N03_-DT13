@@ -32,3 +32,11 @@ h2 { font-size: 18px; margin: 0 0 6px; color: #1e3a8a; }
 .nut-chu:hover { background: none; color: #1e3a8a; }
 .buoc { margin-top: 28px; }
 .dat { color: #15803d; }
+body { flex-direction: column; gap: 16px; }
+.phu a { color: #1d4ed8; }
+a:focus-visible, .nut-chu:focus-visible { outline: 3px solid #93c5fd; outline-offset: 2px; }
+.chan-trang { max-width: 400px; color: #4b5563; font-size: 13px; text-align: center; }
+.chan-trang p { margin: 2px 0; }
+.du-lieu-mo-phong { font-weight: 600; color: #374151; }
+/* O nhap bi bao sai (aria-invalid): vien do, kem thong bao loi bang chu */
+input[aria-invalid="true"] { border: 2px solid #b91c1c; }

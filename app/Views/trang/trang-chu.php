@@ -4,6 +4,8 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Trang chủ – Hệ thống Quản lý Đồ án và Đề tài Nghiên cứu</title>
+    <meta name="description" content="Trang làm việc theo vai trò: đề tài, báo cáo theo mốc, nghiệm thu, thông báo và hồ sơ cá nhân.">
+    <meta name="robots" content="noindex, nofollow">
     <?= view('trang/_kieu-trang-chu') ?>
 </head>
 <body>
@@ -45,7 +47,8 @@
         <p class="ket-qua" aria-live="polite"></p>
     </section>
 </main>
+<?= view('trang/_chan-trang') ?>
 
-<script src="/assets/trang-chu.js?v=20261014"></script>
+<script src="/assets/trang-chu.js?v=20261016"></script>
 </body>
 </html>

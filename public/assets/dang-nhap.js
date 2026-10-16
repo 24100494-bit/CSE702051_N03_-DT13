@@ -1,14 +1,26 @@
+// Danh dau o nhap sai: aria-invalid, noi voi o thong bao loi (aria-describedby), dua tieu diem ve o sai dau tien.
+// Goi khong kem o nao thi chi bo danh dau cu trong form.
+function danhDauLoi(form, tb, ...oSai) {
+    form.querySelectorAll('[aria-invalid="true"]').forEach((o) => { o.removeAttribute('aria-invalid'); o.removeAttribute('aria-describedby'); });
+    oSai.forEach((o) => { o.setAttribute('aria-invalid', 'true'); o.setAttribute('aria-describedby', tb.id); });
+    if (oSai[0]) oSai[0].focus();
+}
+
 document.getElementById('form-dang-nhap').addEventListener('submit', async (e) => {
     e.preventDefault();
     const thongBao = document.getElementById('thong-bao');
     const nut = document.getElementById('nut-dang-nhap');
-    const tenDangNhap = document.getElementById('ten_dang_nhap').value.trim();
-    const matKhau = document.getElementById('mat_khau').value;
+    const oTen = document.getElementById('ten_dang_nhap');
+    const oMatKhau = document.getElementById('mat_khau');
+    const tenDangNhap = oTen.value.trim();
+    const matKhau = oMatKhau.value;
 
     thongBao.className = 'loi';
     thongBao.textContent = '';
+    danhDauLoi(e.target, thongBao);
     if (!tenDangNhap || !matKhau) {
         thongBao.textContent = 'Vui lòng nhập tên đăng nhập và mật khẩu.';
+        danhDauLoi(e.target, thongBao, ...[tenDangNhap ? null : oTen, matKhau ? null : oMatKhau].filter(Boolean));
         return;
     }
 
@@ -32,6 +44,7 @@ document.getElementById('form-dang-nhap').addEventListener('submit', async (e) =
             thongBao.textContent = r.status === 401
                 ? 'Sai tên đăng nhập hoặc mật khẩu.'
                 : 'Không đăng nhập được (mã ' + r.status + '). Vui lòng thử lại.';
+            if (r.status === 401) danhDauLoi(e.target, thongBao, oMatKhau, oTen);
         }
     } catch (err) {
         thongBao.textContent = 'Không kết nối được máy chủ. Vui lòng thử lại.';
@@ -69,9 +82,11 @@ document.getElementById('form-yeu-cau').addEventListener('submit', async (e) => 
     const tb = document.getElementById('tb-yeu-cau');
     const nut = document.getElementById('nut-yeu-cau');
     const email = document.getElementById('email_quen').value.trim();
+    const oEmail = document.getElementById('email_quen');
     tb.className = 'loi';
     tb.textContent = '';
-    if (!email) { tb.textContent = 'Vui lòng nhập email.'; return; }
+    danhDauLoi(e.target, tb);
+    if (!email) { tb.textContent = 'Vui lòng nhập email.'; danhDauLoi(e.target, tb, oEmail); return; }
 
     nut.disabled = true;
     try {
@@ -81,6 +96,7 @@ document.getElementById('form-yeu-cau').addEventListener('submit', async (e) => 
             tb.textContent = j.data.thong_bao;
         } else {
             tb.textContent = r.status === 422 ? 'Email không hợp lệ.' : 'Không gửi được yêu cầu (mã ' + r.status + ').';
+            if (r.status === 422) danhDauLoi(e.target, tb, oEmail);
         }
     } catch (err) {
         tb.textContent = 'Không kết nối được máy chủ. Vui lòng thử lại.';
@@ -95,11 +111,13 @@ document.getElementById('form-dat-lai').addEventListener('submit', async (e) => 
     const token = document.getElementById('ma_dat_lai').value.trim();
     const matKhauMoi = document.getElementById('mat_khau_moi').value;
     const nhapLai = document.getElementById('mat_khau_moi_2').value;
+    const o = (id) => document.getElementById(id);
     tb.className = 'loi';
     tb.textContent = '';
-    if (!token) { tb.textContent = 'Vui lòng nhập mã đặt lại.'; return; }
-    if (matKhauMoi.length < 8 || matKhauMoi.length > 72) { tb.textContent = 'Mật khẩu mới từ 8 đến 72 ký tự.'; return; }
-    if (matKhauMoi !== nhapLai) { tb.textContent = 'Hai lần nhập mật khẩu mới không khớp.'; return; }
+    danhDauLoi(e.target, tb);
+    if (!token) { tb.textContent = 'Vui lòng nhập mã đặt lại.'; danhDauLoi(e.target, tb, o('ma_dat_lai')); return; }
+    if (matKhauMoi.length < 8 || matKhauMoi.length > 72) { tb.textContent = 'Mật khẩu mới từ 8 đến 72 ký tự.'; danhDauLoi(e.target, tb, o('mat_khau_moi')); return; }
+    if (matKhauMoi !== nhapLai) { tb.textContent = 'Hai lần nhập mật khẩu mới không khớp.'; danhDauLoi(e.target, tb, o('mat_khau_moi_2')); return; }
 
     nut.disabled = true;
     try {
@@ -115,6 +133,7 @@ document.getElementById('form-dat-lai').addEventListener('submit', async (e) => 
             tb.textContent = 'Nhập sai mã quá nhiều lần. Vui lòng thử lại sau ' + phut + ' phút.';
         } else {
             tb.textContent = r.status === 422 ? 'Mã đặt lại không đúng hoặc đã hết hạn.' : 'Không đặt lại được mật khẩu (mã ' + r.status + ').';
+            if (r.status === 422) danhDauLoi(e.target, tb, o('ma_dat_lai'));
         }
     } catch (err) {
         tb.textContent = 'Không kết nối được máy chủ. Vui lòng thử lại.';
