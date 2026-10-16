@@ -4,12 +4,13 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Đăng nhập – Hệ thống Quản lý Đồ án và Đề tài Nghiên cứu</title>
+    <meta name="description" content="Đăng nhập Hệ thống Quản lý Đồ án và Đề tài Nghiên cứu dành cho sinh viên, giảng viên hướng dẫn, thư ký khoa và hội đồng nghiệm thu; khôi phục mật khẩu bằng mã do thư ký khoa cấp.">
     <?= view('trang/_kieu') ?>
 </head>
 <body>
 <main class="khung">
     <h1>Hệ thống Quản lý Đồ án<br>và Đề tài Nghiên cứu</h1>
-    <p class="phu">Đăng nhập để tiếp tục</p>
+    <p class="phu">Đăng nhập để tiếp tục · <a href="/">Xem đề tài đã duyệt</a></p>
 
     <form id="form-dang-nhap" novalidate>
         <label for="ten_dang_nhap">Tên đăng nhập</label>
@@ -48,7 +49,8 @@
         <p class="lien-ket"><button type="button" id="ve-dang-nhap" class="nut-chu">Quay lại đăng nhập</button></p>
     </section>
 </main>
+<?= view('trang/_chan-trang') ?>
 
-<script src="/assets/dang-nhap.js?v=20261014"></script>
+<script src="/assets/dang-nhap.js?v=20261016"></script>
 </body>
 </html>

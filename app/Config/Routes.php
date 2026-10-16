@@ -5,16 +5,18 @@ use CodeIgniter\Router\RouteCollection;
 /**
  * @var RouteCollection $routes
  */
-// Trang goc vao thang trang dang nhap (khong de trang chao mac dinh cua framework, BM9)
-$routes->get('/', 'TrangController::dangNhap');
+// Trang goc la trang cong khai (K10): danh sach de tai da duyet, khong can dang nhap
+// (khong de trang chao mac dinh cua framework, BM9)
+$routes->get('/', 'TrangController::congKhai');
 // curl -I gui HEAD: tra dung trang va the tieu de bao mat thay vi 404 (BM12)
-$routes->head('/', 'TrangController::dangNhap');
+$routes->head('/', 'TrangController::congKhai');
 
 $routes->get('dang-nhap', 'TrangController::dangNhap');
 $routes->get('trang-chu', 'TrangController::trangChu');
 
 $routes->group('api/v1', static function ($routes) {
     $routes->get('health', 'HealthController::index');
+    $routes->get('public/de-tai', 'CongKhaiController::index');
 
     $routes->post('auth/dang-ky', 'XacThucController::dangKy');
     $routes->post('auth/dang-nhap', 'XacThucController::dangNhap');

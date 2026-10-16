@@ -42,7 +42,8 @@
         }
         const loi = json && json.error ? json.error : {};
         const chiTiet = (loi.details || []).map((d) => d.field + ': ' + d.issue).join('; ');
-        return { ok: false, status: r.status, loi: (loi.message || ('Lỗi ' + r.status)) + (chiTiet ? ' (' + chiTiet + ')' : '') };
+        const truong = (loi.details || []).flatMap((d) => String(d.field || '').split(',').map((t) => t.trim())).filter(Boolean);
+        return { ok: false, status: r.status, truong, loi: (loi.message || ('Lỗi ' + r.status)) + (chiTiet ? ' (' + chiTiet + ')' : '') };
     }
 
     function tao(the, thuocTinh, ...con) {
@@ -65,18 +66,40 @@
     });
     const thoiGian = (s) => (s ? String(s).slice(0, 16).replace('T', ' ') : '');
 
+    let soOLoi = 0;
     function oThongBao() {
-        return tao('p', { class: 'loi', role: 'alert', 'aria-live': 'assertive' });
+        return tao('p', { class: 'loi', role: 'alert', 'aria-live': 'assertive', id: 'o-loi-' + (++soOLoi) });
+    }
+
+    /**
+     * Bo danh dau cu; neu may chu bao loi cac truong thi danh dau o nhap tuong ung (aria-invalid),
+     * noi o do voi thong bao loi (aria-describedby) va dua tieu diem ve o sai dau tien
+     */
+    function danhDauLoi(nut, oLoi, truong) {
+        const vung = oLoi.closest('section') || document;
+        vung.querySelectorAll('[aria-invalid="true"]').forEach((o) => { o.removeAttribute('aria-invalid'); o.removeAttribute('aria-describedby'); });
+        if (!truong || !truong.length) return;
+        const nhom = nut.closest('form, .luoi-form, .hang, tr') || vung;
+        let sai = truong.map((t) => nhom.querySelector('[name="' + t + '"]') || vung.querySelector('[name="' + t + '"]')).filter(Boolean);
+        if (!sai.length) {
+            // O nhap trong cung hang voi nut khong dat name: hang chi co mot o thi do la o sai
+            const oNhap = [...nhom.querySelectorAll('input, select, textarea')];
+            if (oNhap.length === 1) sai = oNhap;
+        }
+        sai.forEach((o) => { o.setAttribute('aria-invalid', 'true'); o.setAttribute('aria-describedby', oLoi.id); });
+        if (sai[0]) sai[0].focus();
     }
 
     /** Chay thao tac, hien loi vao o, thanh cong thi goi lai ham tai lai */
     async function thucHien(nut, oLoi, hamGoi, taiLai) {
         nut.disabled = true;
         oLoi.textContent = '';
+        danhDauLoi(nut, oLoi);
         const kq = await hamGoi();
         nut.disabled = false;
         if (!kq.ok) {
             oLoi.textContent = kq.loi;
+            danhDauLoi(nut, oLoi, kq.truong);
             return kq;
         }
         if (taiLai) await taiLai();
@@ -136,13 +159,13 @@
             const hang = tao('div', { class: 'hang' });
             if (laGvhd && bc.trang_thai === 'pending') {
                 const nhanXet = tao('input', { placeholder: 'Nhận xét', 'aria-label': 'Nhận xét báo cáo ' + bc.id });
-                hang.append(nhanXet,
+                hang.append(tao('label', {}, 'Nhận xét', nhanXet),
                     tao('button', { type: 'button', text: 'Duyệt', onclick: (e) => thucHien(e.target, oLoi, () => goi('POST', '/bao-cao-moc/' + bc.id + '/duyet', { nhan_xet_gv: nhanXet.value }), taiLai) }),
                     tao('button', { type: 'button', class: 'nut-nguy', text: 'Yêu cầu bổ sung', onclick: (e) => thucHien(e.target, oLoi, () => goi('POST', '/bao-cao-moc/' + bc.id + '/yeu-cau-bo-sung', { nhan_xet_gv: nhanXet.value }), taiLai) }));
             }
             if (laNhomTruong && bc.trang_thai === 'revision_requested' && moiNhat[bc.moc_thoi_gian_id] === bc.id) {
-                const tep = tao('input', { type: 'file', accept: '.pdf,.docx', 'aria-label': 'Tệp nộp lại' });
-                hang.append(tep, tao('button', {
+                const tep = tao('input', { type: 'file', accept: '.pdf,.docx' });
+                hang.append(tao('label', {}, 'Tệp nộp lại', tep), tao('button', {
                     type: 'button', text: 'Nộp lại',
                     onclick: (e) => thucHien(e.target, oLoi, () => {
                         const fd = new FormData();
@@ -350,8 +373,8 @@
         }
         let suaForm = null;
         if (laNhomTruong && ['pending', 'rejected'].includes(dt.trang_thai)) {
-            const ten = tao('input', { value: dt.ten_de_tai, maxlength: 200, 'aria-label': 'Tên đề tài' });
-            const moTa = tao('textarea', { 'aria-label': 'Mô tả phạm vi' });
+            const ten = tao('input', { name: 'ten_de_tai', value: dt.ten_de_tai, maxlength: 200 });
+            const moTa = tao('textarea', { name: 'mo_ta_pham_vi' });
             moTa.value = dt.mo_ta_pham_vi || '';
             suaForm = tao('div', { class: 'luoi-form' }, tao('label', {}, 'Sửa tên', ten), tao('label', {}, 'Sửa mô tả', moTa),
                 tao('button', { type: 'button', text: dt.trang_thai === 'rejected' ? 'Sửa và gửi lại' : 'Lưu sửa', onclick: (e) => thucHien(e.target, oLoi, () => goi('PATCH', '/de-tai/' + dt.id, { ten_de_tai: ten.value, mo_ta_pham_vi: moTa.value }), taiDs) }));
@@ -377,8 +400,8 @@
                     ? tao('button', { type: 'button', class: 'nut-nguy', text: 'Xóa', onclick: (e) => thucHien(e.target, oLoi, () => goi('DELETE', '/nhom-sinh-vien/' + dt.id + '/thanh-vien/' + tv.sinh_vien_id), taiLai) })
                     : null))),
             laNhomTruong ? (() => {
-                const ma = tao('input', { type: 'number', min: 1, 'aria-label': 'Mã người dùng của sinh viên' });
-                return tao('div', { class: 'hang' }, ma, tao('button', { type: 'button', text: 'Thêm thành viên', onclick: (e) => thucHien(e.target, oLoi, () => goi('POST', '/nhom-sinh-vien/' + dt.id + '/thanh-vien', { sinh_vien_id: Number(ma.value) }), taiLai) }));
+                const ma = tao('input', { type: 'number', min: 1 });
+                return tao('div', { class: 'hang' }, tao('label', {}, 'Mã người dùng của sinh viên', ma), tao('button', { type: 'button', text: 'Thêm thành viên', onclick: (e) => thucHien(e.target, oLoi, () => goi('POST', '/nhom-sinh-vien/' + dt.id + '/thanh-vien', { sinh_vien_id: Number(ma.value) }), taiLai) }));
             })() : null,
             oLoi));
     }
@@ -399,8 +422,8 @@
                 const vungDiem = tao('div');
                 const hang = tao('div', { class: 'hang' });
                 if (dt.trang_thai === 'pending') {
-                    const ghiChu = tao('input', { placeholder: 'Nhận xét / lý do từ chối', 'aria-label': 'Nhận xét đề tài ' + dt.id });
-                    hang.append(ghiChu,
+                    const ghiChu = tao('input', { placeholder: 'Nhận xét / lý do từ chối', 'aria-label': 'Nhận xét / lý do từ chối – đề tài ' + dt.id });
+                    hang.append(tao('label', {}, 'Nhận xét / lý do từ chối', ghiChu),
                         tao('button', { type: 'button', text: 'Duyệt', onclick: (e) => thucHien(e.target, oLoi, () => goi('POST', '/de-tai/' + dt.id + '/duyet', { nhan_xet: ghiChu.value }), taiDs) }),
                         tao('button', { type: 'button', class: 'nut-nguy', text: 'Từ chối', onclick: (e) => thucHien(e.target, oLoi, () => goi('POST', '/de-tai/' + dt.id + '/tu-choi', { ly_do: ghiChu.value }), taiDs) }));
                 }
@@ -664,7 +687,7 @@
                 ds.append(tao('div', { class: 'muc' },
                     tao('div', { class: 'hang' }, tao('h3', { text: dt.ten_de_tai }), nhanTrangThai(dt.trang_thai)),
                     tao('p', { class: 'phu', text: 'GVHD hiện tại: ' + (dt.gvhd_id ? (tenGv[String(dt.gvhd_id)] || 'mã ' + dt.gvhd_id) : 'chưa phân công') }),
-                    tao('div', { class: 'hang' }, chon, tao('button', { type: 'button', text: 'Phân công', onclick: (e) => thucHien(e.target, oLoi, () => goi('PATCH', '/nhom-sinh-vien/' + dt.id + '/gvhd', { gvhd_id: Number(chon.value) }), taiDs) })),
+                    tao('div', { class: 'hang' }, tao('label', {}, 'Chọn GVHD', chon), tao('button', { type: 'button', text: 'Phân công', onclick: (e) => thucHien(e.target, oLoi, () => goi('PATCH', '/nhom-sinh-vien/' + dt.id + '/gvhd', { gvhd_id: Number(chon.value) }), taiDs) })),
                     oLoi));
             });
         }
@@ -699,7 +722,7 @@
     async function khoiLopVaMoc() {
         const the = theMoi('Lớp học phần và mốc thời gian');
         const oLoi = oThongBao();
-        const chonLop = tao('select', { 'aria-label': 'Chọn lớp học phần' });
+        const chonLop = tao('select');
         const vungMoc = tao('div');
         const formLop = tao('form', { class: 'luoi-form' },
             oNhap('Mã lớp', 'ma_lop', { maxlength: 20, required: true }), oNhap('Tên lớp', 'ten_lop', { maxlength: 100, required: true }),
@@ -716,7 +739,7 @@
             onclick: (e) => { if (chonLop.value && window.confirm('Xóa lớp này?')) thucHien(e.target, oLoi, () => goi('DELETE', '/lop-hoc-phan/' + chonLop.value), taiLop); },
         });
         chonLop.addEventListener('change', () => taiMoc());
-        the.append(tao('div', { class: 'hang' }, chonLop, nutXoaLop), vungMoc, tao('h3', { text: 'Thêm lớp học phần' }), formLop, oLoi);
+        the.append(tao('div', { class: 'hang' }, tao('label', {}, 'Lớp học phần', chonLop), nutXoaLop), vungMoc, tao('h3', { text: 'Thêm lớp học phần' }), formLop, oLoi);
 
         async function taiLop() {
             const kq = await goi('GET', '/lop-hoc-phan');
@@ -757,8 +780,8 @@
     async function khoiTaiKhoan() {
         const the = theMoi('Tài khoản người dùng');
         const oLoi = oThongBao();
-        const tuKhoa = tao('input', { type: 'search', placeholder: 'Tìm tên đăng nhập, họ tên, email', 'aria-label': 'Từ khóa' });
-        const locVaiTro = tao('select', { 'aria-label': 'Lọc vai trò' }, tao('option', { value: '', text: 'Mọi vai trò' }),
+        const tuKhoa = tao('input', { type: 'search', placeholder: 'Tìm tên đăng nhập, họ tên, email' });
+        const locVaiTro = tao('select', {}, tao('option', { value: '', text: 'Mọi vai trò' }),
             Object.entries(TEN_VAI_TRO).map(([ma, ten]) => tao('option', { value: ma, text: ten })));
         const vungBang = tao('div', { class: 'cuon-ngang' });
         const phanTrang = tao('div', { class: 'hang' });
@@ -774,7 +797,7 @@
             const f = Object.fromEntries(new FormData(formTk));
             thucHien(formTk.querySelector('button'), oLoi, () => goi('POST', '/nguoi-dung', f), async () => { formTk.reset(); await taiDs(); });
         });
-        the.append(tao('div', { class: 'hang' }, tuKhoa, locVaiTro, tao('button', { type: 'button', text: 'Tìm', onclick: () => { trang = 1; taiDs(); } })),
+        the.append(tao('div', { class: 'hang' }, tao('label', {}, 'Từ khóa', tuKhoa), tao('label', {}, 'Vai trò', locVaiTro), tao('button', { type: 'button', text: 'Tìm', onclick: () => { trang = 1; taiDs(); } })),
             vungBang, phanTrang, oMa, tao('h3', { text: 'Tạo tài khoản' }), formTk, oLoi);
 
         // F1.3: thu ky kiem dung nguoi roi cap ma dat lai mot lan; ma chi hien mot lan tren man hinh nay
@@ -822,10 +845,10 @@
     // ---------- Hoi dong ----------
     async function khoiHoiDong() {
         const the = theMoi('Hồ sơ nghiệm thu');
-        const locTt = tao('select', { 'aria-label': 'Lọc trạng thái hồ sơ', onchange: () => taiDs() },
+        const locTt = tao('select', { onchange: () => taiDs() },
             tao('option', { value: 'completed', text: 'Chờ chấm' }), tao('option', { value: 'accepted', text: 'Đã nghiệm thu' }), tao('option', { value: '', text: 'Tất cả' }));
         const ds = tao('div');
-        the.append(tao('div', { class: 'hang' }, locTt), ds);
+        the.append(tao('div', { class: 'hang' }, tao('label', {}, 'Trạng thái hồ sơ', locTt)), ds);
         async function taiDs() {
             const kq = await goi('GET', '/nghiem-thu/ho-so?size=100' + (locTt.value ? '&trang_thai=' + locTt.value : ''));
             ds.replaceChildren();
@@ -851,8 +874,8 @@
         const oLoi = oThongBao();
         let formCham = null;
         if (h.de_tai.trang_thai === 'completed' && !h.toi_da_cham) {
-            const diem = tao('input', { type: 'number', min: 0, max: 10, step: 0.25, required: true, 'aria-label': 'Điểm (0–10)' });
-            const nhanXet = tao('textarea', { 'aria-label': 'Nhận xét' });
+            const diem = tao('input', { name: 'diem', type: 'number', min: 0, max: 10, step: 0.25, required: true });
+            const nhanXet = tao('textarea', { name: 'nhan_xet' });
             formCham = tao('div', { class: 'luoi-form' }, tao('label', {}, 'Điểm (0–10)', diem), tao('label', {}, 'Nhận xét', nhanXet),
                 tao('button', {
                     type: 'button', text: 'Gửi điểm',
@@ -881,14 +904,17 @@
     // ---------- Ho so ca nhan, dang xuat ----------
     function ganHoSo() {
         const oKetQua = document.querySelector('#tieu-de-ho-so ~ .ket-qua');
+        oKetQua.id = 'ket-qua-ho-so';
         const ganForm = (id, url, layDuLieu, thanhCong) => {
             const form = document.getElementById(id);
             form.addEventListener('submit', async (e) => {
                 e.preventDefault();
                 const nut = form.querySelector('button');
                 nut.disabled = true;
+                danhDauLoi(nut, oKetQua);
                 const kq = await goi('PATCH', url, layDuLieu(new FormData(form)));
                 nut.disabled = false;
+                if (!kq.ok) danhDauLoi(nut, oKetQua, kq.truong);
                 oKetQua.className = kq.ok ? 'ket-qua' : 'loi';
                 oKetQua.textContent = kq.ok ? thanhCong : kq.loi;
                 if (kq.ok && id === 'form-mat-khau') form.reset();

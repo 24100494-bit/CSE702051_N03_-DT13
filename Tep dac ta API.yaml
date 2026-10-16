@@ -291,14 +291,50 @@ paths:
   /public/de-tai:
     get:
       tags: [Đề tài]
-      summary: Trang danh sách đề tài công khai (YCCN-21)
-      description: Không yêu cầu xác thực, ẩn thông tin nội bộ.
+      summary: Trang danh sách đề tài công khai (YCCN-21, K10)
+      description: >
+        Không yêu cầu xác thực. Chỉ đề tài đã duyệt trở lên (approved, in_progress, completed, accepted);
+        không trả mã người đề xuất, mã GVHD hay thông tin cá nhân. size mặc định 10, tối đa 50 (lớn hơn thì hạ về 50).
+        Cùng dữ liệu được dựng sẵn ở trang gốc / (không cần JavaScript) cho công cụ tìm kiếm.
       security: []
       parameters:
+        - { name: q, in: query, description: Tìm theo tên hoặc mô tả đề tài, schema: { type: string, maxLength: 100 } }
         - $ref: '#/components/parameters/Page'
         - $ref: '#/components/parameters/Size'
       responses:
-        '200': { $ref: '#/components/responses/ThanhCong' }
+        '200':
+          description: Danh sách đề tài công khai
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      items:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            id: { type: integer }
+                            ten_de_tai: { type: string }
+                            mo_ta_pham_vi: { type: string, nullable: true }
+                            trang_thai: { type: string, enum: [approved, in_progress, completed, accepted] }
+                            ten_trang_thai: { type: string, example: Đang thực hiện }
+                            lop_hoc_phan:
+                              type: object
+                              nullable: true
+                              properties:
+                                ma_lop: { type: string }
+                                ten_lop: { type: string }
+                                nam_hoc: { type: string }
+                                hoc_ky: { type: string, example: HK1 }
+                            ngay_tao: { type: string, format: date }
+                      total: { type: integer }
+                      page: { type: integer }
+                      size: { type: integer }
+                      total_pages: { type: integer }
 
   /de-tai:
     get:
@@ -1031,7 +1067,7 @@ components:
                   issue: { type: string, example: Khong duoc de trong }
             requestId: { type: string, example: a7f3c1e2b4d6f809 }
       description: >
-        Cấu trúc lỗi thống nhất theo Quy ước mã nguồn – Nhóm 03. Không chứa câu lệnh SQL,
+        Cấu trúc lỗi thống nhất theo Quy ước mã nguồn – Nhóm 13. Không chứa câu lệnh SQL,
         đường dẫn tệp hay vết gọi hàm (rủi ro BM9).
     NguoiDung:
       type: object
