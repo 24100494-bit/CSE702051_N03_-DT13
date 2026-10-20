@@ -54,10 +54,8 @@ INSERT INTO `bao_cao_moc` (`id`,`de_tai_id`,`moc_thoi_gian_id`,`duong_dan_tep`,`
 (1,1,1,'/uploads/de_tai_1/moc_1/de_cuong_v1.pdf','De_Cuong_Chi_Tiet_Nhom1.pdf','approved','Đề cương chi tiết tốt, duyệt tiếp tục thực hiện.','2026-09-23 03:42:43','2026-09-23 03:42:43')
 ON DUPLICATE KEY UPDATE `trang_thai` = VALUES(`trang_thai`);
 
--- diem_nghiem_thu
-INSERT INTO `diem_nghiem_thu` (`id`,`de_tai_id`,`hoi_dong_id`,`diem`,`nhan_xet`,`created_at`,`updated_at`) VALUES
-(1,1,5,9.50,'Sản phẩm hoàn thiện cao, giao diện trực quan, đáp ứng đầy đủ yêu cầu.','2026-09-23 03:42:43','2026-09-23 03:42:43')
-ON DUPLICATE KEY UPDATE `diem` = VALUES(`diem`);
+-- diem_nghiem_thu: đề tài 1 đang thực hiện (in_progress) nên chưa có điểm nghiệm thu;
+-- điểm mẫu của các đề tài đã đủ điều kiện / đã nghiệm thu nằm trong seed_extended.sql
 
 -- nhat_ky_he_thong
 INSERT INTO `nhat_ky_he_thong` (`id`,`nguoi_dung_id`,`hanh_dong`,`chi_tiet`,`dia_chi_ip`,`created_at`) VALUES

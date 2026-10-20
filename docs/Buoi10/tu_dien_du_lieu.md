@@ -16,7 +16,7 @@ Hệ thống Quản lý Đồ án và Đề tài Nghiên cứu (đề tài DT13)
 | 6 | `thanh_vien_nhom` | Thành viên nhóm thực hiện đề tài | 4 | 204 |
 | 7 | `moc_thoi_gian` | Mốc nộp báo cáo của lớp học phần | 8 | 24 |
 | 8 | `bao_cao_moc` | Bản nộp báo cáo theo mốc | 9 | 77 |
-| 9 | `diem_nghiem_thu` | Điểm nghiệm thu của từng thành viên hội đồng | 7 | 28 |
+| 9 | `diem_nghiem_thu` | Điểm nghiệm thu của từng thành viên hội đồng | 7 | 27 |
 | 10 | `chuyen_trang_thai_hop_le` | Bảng chuyển trạng thái hợp lệ | 3 | 8 |
 | 11 | `thong_bao` | Thông báo gửi người dùng | 7 | 116 |
 | 12 | `nhat_ky_he_thong` | Nhật ký hành vi, chỉ ghi thêm (trigger chặn sửa, xóa) | 6 | 302 |
