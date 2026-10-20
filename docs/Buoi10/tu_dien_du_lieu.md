@@ -1,6 +1,6 @@
 # Từ điển dữ liệu — CSDL `quan_ly_do_an`
 
-Hệ thống Quản lý Đồ án và Đề tài Nghiên cứu (đề tài DT13) – Nhóm 13, học phần CSE702051. Lược đồ đầy đủ = `schema.sql` + `cap_nhat_csdl_buoi5.sql`, `cap_nhat_csdl_buoi6.sql`, `cap_nhat_csdl_buoi8.sql`; chỉ mục bổ sung ở `indexes_v2.sql`, `indexes_search.sql`, `indexes_buoi09.sql`. Bảng dưới được sinh từ CSDL đã nạp đủ các tệp trên (MariaDB 10.4); cột "Mô tả" do nhóm soạn.
+Hệ thống Quản lý Đồ án và Đề tài Nghiên cứu (đề tài DT13) – Nhóm 13, học phần CSE702051. Lược đồ đầy đủ = `schema.sql` (đã gộp các tệp cập nhật Buổi 5, 6, 8 và các tệp chỉ mục) + `trigger.sql` (5 trigger, chỉ máy cục bộ). Bảng dưới được sinh từ CSDL dựng theo thứ tự `schema.sql` → `seed.sql` → `seed_extended.sql` → `trigger.sql` (MariaDB 10.4); cột "Mô tả" do nhóm soạn. Cột "Nguồn" ghi tệp đã đưa ràng buộc hoặc chỉ mục vào lần đầu; nay tất cả đều nằm trong `schema.sql` (bản gốc các tệp đó ở thư mục `lich_su_cap_nhat`).
 
 **Tổng quan:** 13 bảng, 83 cột, 16 khóa ngoại, 11 ràng buộc CHECK, 5 trigger, 52 chỉ mục (kể cả khóa chính). Engine InnoDB, bộ ký tự utf8mb4, collation utf8mb4_unicode_ci.
 
@@ -22,7 +22,7 @@ Hệ thống Quản lý Đồ án và Đề tài Nghiên cứu (đề tài DT13)
 | 12 | `nhat_ky_he_thong` | Nhật ký hành vi, chỉ ghi thêm (trigger chặn sửa, xóa) | 6 | 302 |
 | 13 | `ma_dat_lai_mat_khau` | Mã đặt lại mật khẩu một lần | 7 | 0 |
 
-Số bản ghi mẫu = `seed.sql` + `seed_extended.sql` sau khi chạy các tệp cập nhật (chưa tính `seed_bulk.sql`, `seed_bulk_buoi9.sql` – chỉ nạp cục bộ để đo hiệu năng). Ký hiệu khóa: PK khóa chính, FK khóa ngoại, UQ duy nhất.
+Số bản ghi mẫu = `seed.sql` + `seed_extended.sql` (chưa tính `seed_bulk.sql`, `seed_bulk_buoi9.sql` – chỉ nạp cục bộ để đo hiệu năng). Ký hiệu khóa: PK khóa chính, FK khóa ngoại, UQ duy nhất.
 
 ## 1. Bảng `nguoi_dung`
 
