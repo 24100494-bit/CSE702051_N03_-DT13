@@ -188,7 +188,7 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\"ten_dang_nhap\": \"sv_pm_{{lan}}\", \"mat_khau\": \"{{mat_khau}}\", \"ho_ten\": \"Sinh viên kiểm thử {{lan}}\", \"email\": \"sv_pm_{{lan}}@huce.edu.vn\", \"vai_tro\": \"sinh_vien\"}",
+              "raw": "{\"ten_dang_nhap\": \"sv_pm_{{lan}}\", \"mat_khau\": \"{{mat_khau}}\", \"ho_ten\": \"Sinh viên kiểm thử {{lan}}\", \"email\": \"sv_pm_{{lan}}@dt13.example\", \"vai_tro\": \"sinh_vien\"}",
               "options": {
                 "raw": {
                   "language": "json"

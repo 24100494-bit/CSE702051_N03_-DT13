@@ -16,11 +16,11 @@ ON DUPLICATE KEY UPDATE `mo_ta` = VALUES(`mo_ta`);
 
 -- nguoi_dung
 INSERT INTO `nguoi_dung` (`id`,`ten_dang_nhap`,`mat_khau_hash`,`ho_ten`,`email`,`so_dien_thoai`,`created_at`,`updated_at`) VALUES
-(1,'thukykhoa','$2y$12$mDTNHrxV.Ln4oZ4ApqjoBe5xKDODdKBG.7wmqcZKNBG4P0wY5x.PG','Thư Ký Khoa CNTT','thuky@huce.edu.vn','0901111111','2026-09-23 03:42:43','2026-09-23 03:42:43'),
-(2,'gv_nguyen_van_a','$2y$12$E07nn6N91yxly0uepbhgsuu116sdbhxTlw8w92k34WGRwR9jzwkCO','TS. Nguyễn Văn A','anguyen@huce.edu.vn','0902222222','2026-09-23 03:42:43','2026-09-23 03:42:43'),
-(3,'sv_tran_van_b','$2y$12$N6UGL9npZ32W0rdh../2bO6HprRXSW6/WIQOUmjdWvacZqzoYMb0i','Trần Văn B (Nhóm trưởng)','btran@st.huce.edu.vn','0903333333','2026-09-23 03:42:43','2026-09-23 03:42:43'),
-(4,'sv_le_thi_c','$2y$12$axasjfcEMJal.4uNzHv.i.b7lShwZK5e8oCHbRfceYJSBJQxdWiYm','Lê Thị C (Thành viên)','cle@st.huce.edu.vn','0904444444','2026-09-23 03:42:43','2026-09-23 03:42:43'),
-(5,'hd_pham_van_d','$2y$12$lcf4JmDUv1Q3rMnh9VkinOjVLmFfiXqj9/X8CNAK3rb2ixUbvmMdm','PGS.TS. Phạm Văn D','dpham@huce.edu.vn','0905555555','2026-09-23 03:42:43','2026-09-23 03:42:43')
+(1,'thukykhoa','$2y$12$mDTNHrxV.Ln4oZ4ApqjoBe5xKDODdKBG.7wmqcZKNBG4P0wY5x.PG','Thư Ký Khoa CNTT','thuky@dt13.example','0901111111','2026-09-23 03:42:43','2026-09-23 03:42:43'),
+(2,'gv_nguyen_van_a','$2y$12$E07nn6N91yxly0uepbhgsuu116sdbhxTlw8w92k34WGRwR9jzwkCO','TS. Nguyễn Văn A','anguyen@dt13.example','0902222222','2026-09-23 03:42:43','2026-09-23 03:42:43'),
+(3,'sv_tran_van_b','$2y$12$N6UGL9npZ32W0rdh../2bO6HprRXSW6/WIQOUmjdWvacZqzoYMb0i','Trần Văn B (Nhóm trưởng)','btran@sv.dt13.example','0903333333','2026-09-23 03:42:43','2026-09-23 03:42:43'),
+(4,'sv_le_thi_c','$2y$12$axasjfcEMJal.4uNzHv.i.b7lShwZK5e8oCHbRfceYJSBJQxdWiYm','Lê Thị C (Thành viên)','cle@sv.dt13.example','0904444444','2026-09-23 03:42:43','2026-09-23 03:42:43'),
+(5,'hd_pham_van_d','$2y$12$lcf4JmDUv1Q3rMnh9VkinOjVLmFfiXqj9/X8CNAK3rb2ixUbvmMdm','PGS.TS. Phạm Văn D','dpham@dt13.example','0905555555','2026-09-23 03:42:43','2026-09-23 03:42:43')
 ON DUPLICATE KEY UPDATE `ho_ten` = VALUES(`ho_ten`);
 
 -- nguoi_dung_vai_tro
@@ -54,10 +54,8 @@ INSERT INTO `bao_cao_moc` (`id`,`de_tai_id`,`moc_thoi_gian_id`,`duong_dan_tep`,`
 (1,1,1,'/uploads/de_tai_1/moc_1/de_cuong_v1.pdf','De_Cuong_Chi_Tiet_Nhom1.pdf','approved','Đề cương chi tiết tốt, duyệt tiếp tục thực hiện.','2026-09-23 03:42:43','2026-09-23 03:42:43')
 ON DUPLICATE KEY UPDATE `trang_thai` = VALUES(`trang_thai`);
 
--- diem_nghiem_thu
-INSERT INTO `diem_nghiem_thu` (`id`,`de_tai_id`,`hoi_dong_id`,`diem`,`nhan_xet`,`created_at`,`updated_at`) VALUES
-(1,1,5,9.50,'Sản phẩm hoàn thiện cao, giao diện trực quan, đáp ứng đầy đủ yêu cầu.','2026-09-23 03:42:43','2026-09-23 03:42:43')
-ON DUPLICATE KEY UPDATE `diem` = VALUES(`diem`);
+-- diem_nghiem_thu: đề tài 1 đang thực hiện (in_progress) nên chưa có điểm nghiệm thu;
+-- điểm mẫu của các đề tài đã đủ điều kiện / đã nghiệm thu nằm trong seed_extended.sql
 
 -- nhat_ky_he_thong
 INSERT INTO `nhat_ky_he_thong` (`id`,`nguoi_dung_id`,`hanh_dong`,`chi_tiet`,`dia_chi_ip`,`created_at`) VALUES
