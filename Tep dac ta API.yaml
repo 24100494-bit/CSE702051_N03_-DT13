@@ -2,7 +2,7 @@ openapi: 3.0.3
 info:
   title: API Hệ thống Quản lý Đồ án và Đề tài Nghiên cứu
   description: >
-  version: 1.0.0
+  version: 1.1.0
 servers:
   - url: https://htquanlydavadtnc.freepage.cc/api/v1
     description: Môi trường trực tuyến (InfinityFree)
@@ -27,10 +27,30 @@ paths:
   /health:
     get:
       tags: [Hệ thống]
-      summary: Kiểm tra sức khỏe hệ thống
+      summary: Kiểm tra tình trạng ứng dụng và cơ sở dữ liệu
+      description: >
+        Không cần đăng nhập. Chạy SELECT 1 tới cơ sở dữ liệu; trả 200 khi ứng dụng và cơ sở dữ liệu
+        đều hoạt động, 503 khi cơ sở dữ liệu không phản hồi (lý do chi tiết chỉ ghi vào nhật ký máy chủ).
       security: []
       responses:
-        '200': { $ref: '#/components/responses/ThanhCong' }
+        '200':
+          description: Ứng dụng và cơ sở dữ liệu đều hoạt động
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      status: { type: string, example: ok }
+                      database: { type: string, example: ok }
+                      time: { type: string, format: date-time }
+        '503':
+          description: Cơ sở dữ liệu không phản hồi (code SERVICE_UNAVAILABLE)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Loi' }
 
   /auth/dang-ky:
     post:
