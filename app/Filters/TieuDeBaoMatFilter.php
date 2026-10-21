@@ -18,6 +18,8 @@ class TieuDeBaoMatFilter implements FilterInterface
         'X-Content-Type-Options'    => 'nosniff',
         'X-Frame-Options'           => 'DENY',
         'Referrer-Policy'           => 'strict-origin-when-cross-origin',
+        // He thong khong dung thiet bi nao cua nguoi dung: tat het
+        'Permissions-Policy'        => 'camera=(), microphone=(), geolocation=(), payment=(), usb=()',
         'Content-Security-Policy'   => "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; "
             . "connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'",
     ];
