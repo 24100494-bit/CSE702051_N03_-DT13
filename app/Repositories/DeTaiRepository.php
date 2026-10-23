@@ -178,7 +178,7 @@ class DeTaiRepository extends BaseRepository
         return $builder->countAllResults() > 0;
     }
 
-    /** Sinh vien dang co de tai chua bi tu choi (pending, approved, in_progress, completed) */
+    /** Sinh vien dang co de tai chua ket thuc (pending, approved, in_progress, completed); rejected va accepted khong tinh */
     public function coDeTaiDangHoatDong(int $sinhVienId): bool
     {
         return $this->db->table('de_tai')
@@ -186,7 +186,7 @@ class DeTaiRepository extends BaseRepository
                 ->where('sinh_vien_de_xuat_id', $sinhVienId)
                 ->orWhereIn('id', static fn ($sub) => $sub->select('de_tai_id')->from('thanh_vien_nhom')->where('sinh_vien_id', $sinhVienId))
             ->groupEnd()
-            ->where('trang_thai !=', 'rejected')
+            ->whereNotIn('trang_thai', ['rejected', 'accepted'])
             ->countAllResults() > 0;
     }
 
