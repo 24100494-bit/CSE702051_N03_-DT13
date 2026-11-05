@@ -20,7 +20,7 @@ $lienKet = static fn (int $t): string => '/?' . http_build_query(array_filter(['
     <meta property="og:description" content="<?= esc($moTa, 'attr') ?>">
     <meta property="og:url" content="<?= esc($diaChiGoc, 'attr') ?>">
     <link rel="stylesheet" href="/assets/phong-chu.css?v=20261021">
-    <link rel="stylesheet" href="/assets/kieu-cong-khai.css?v=20261021">
+    <link rel="stylesheet" href="/assets/kieu-cong-khai.css?v=20261105">
 </head>
 <body>
 <a class="bo-qua" href="#noi-dung">Bỏ qua đến nội dung chính</a>
